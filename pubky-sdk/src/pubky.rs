@@ -51,6 +51,7 @@
 //! ```
 
 use pkarr::PublicKey;
+use std::sync::Arc;
 
 use crate::{
     Capabilities, Pkdns, PubkyAuthFlow, PubkyHttpClient, PubkySigner, PublicStorage, Result,
@@ -73,10 +74,10 @@ impl Pubky {
     /// # Errors
     /// - Returns [`crate::errors::Error`] when the underlying [`PubkyHttpClient`] fails to
     ///   initialize (e.g., TLS configuration or relay/bootstrap setup issues).
-    pub fn new() -> Result<Self> {
-        Ok(Self {
+    pub fn new() -> Result<Arc<Self>> {
+        Ok(Arc::new(Self {
             client: PubkyHttpClient::new()?,
-        })
+        }))
     }
 
     /// Construct preconfigured for a local Pubky testnet.
@@ -84,16 +85,18 @@ impl Pubky {
     /// # Errors
     /// - Returns [`crate::errors::Error`] when the testnet-configured [`PubkyHttpClient`]
     ///   cannot be created (for example, invalid local relay/testnet configuration).
-    pub fn testnet() -> Result<Self> {
-        Ok(Self {
+    pub fn testnet() -> Result<Arc<Self>> {
+        Ok(Arc::new(Self {
             client: PubkyHttpClient::testnet()?,
-        })
+        }))
     }
 
     /// Construct from an already-configured transport.
-    #[must_use]
-    pub const fn with_client(client: PubkyHttpClient) -> Self {
-        Self { client }
+    ///
+    /// # Errors
+    /// - This function is infallible but returns Result for consistency with new() and testnet().
+    pub fn with_client(client: PubkyHttpClient) -> Result<Arc<Self>> {
+        Ok(Arc::new(Self { client }))
     }
 
     /// Start an end-to-end auth flow (QR/deeplink).

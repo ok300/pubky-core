@@ -169,8 +169,11 @@ impl Testnet {
     /// Creates a [`pubky::Pubky`] SDK facade pre-configured to use this test network.
     ///
     /// This is a convenience method that builds a client from `Self::client_builder`.
-    pub fn sdk(&self) -> Result<Pubky, pubky::BuildError> {
-        Ok(Pubky::with_client(self.client()?))
+    pub fn sdk(&self) -> Result<std::sync::Arc<Pubky>, pubky::BuildError> {
+        Pubky::with_client(self.client()?).map_err(|e| match e {
+            pubky::Error::Build(build_err) => build_err,
+            _ => unreachable!("with_client should only return BuildError"),
+        })
     }
 
     /// Create a [pkarr::ClientBuilder] and configure it to use this local test network.

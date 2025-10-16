@@ -87,7 +87,7 @@ impl StaticTestnet {
     /// Creates a [`pubky::Pubky`] SDK facade pre-configured to use this test network.
     ///
     /// This is a convenience method that builds a client from `Self::client_builder`.
-    pub fn sdk(&self) -> Result<Pubky, pubky::BuildError> {
+    pub fn sdk(&self) -> Result<std::sync::Arc<Pubky>, pubky::BuildError> {
         self.testnet.sdk()
     }
 

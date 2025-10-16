@@ -6,7 +6,7 @@ use crate::{client::constructor::Client, js_error::JsResult, wrappers::keys::Key
 
 /// High-level entrypoint to the Pubky SDK.
 #[wasm_bindgen]
-pub struct Pubky(pub(crate) pubky::Pubky);
+pub struct Pubky(pub(crate) std::sync::Arc<pubky::Pubky>);
 
 #[wasm_bindgen]
 impl Pubky {
@@ -21,7 +21,7 @@ impl Pubky {
     #[wasm_bindgen(constructor)]
     pub fn new() -> JsResult<Pubky> {
         let client = Client::new(None)?;
-        Ok(Pubky(pubky::Pubky::with_client(client.0)))
+        Ok(Pubky(pubky::Pubky::with_client(client.0)?))
     }
 
     /// Create a Pubky facade preconfigured for a **local testnet**.
@@ -38,7 +38,7 @@ impl Pubky {
     #[wasm_bindgen(js_name = "testnet")]
     pub fn testnet(host: Option<String>) -> JsResult<Pubky> {
         let client = Client::testnet(host)?;
-        Ok(Pubky(pubky::Pubky::with_client(client.0)))
+        Ok(Pubky(pubky::Pubky::with_client(client.0)?))
     }
 
     /// Wrap an existing configured HTTP client into a Pubky facade.
@@ -50,8 +50,8 @@ impl Pubky {
     /// const client = Client.testnet();
     /// const pubky = Pubky.withClient(client);
     #[wasm_bindgen(js_name = "withClient")]
-    pub fn with_client(client: &Client) -> Pubky {
-        Pubky(pubky::Pubky::with_client(client.0.clone()))
+    pub fn with_client(client: &Client) -> JsResult<Pubky> {
+        Ok(Pubky(pubky::Pubky::with_client(client.0.clone())?))
     }
 
     /// Start a **pubkyauth** flow.
