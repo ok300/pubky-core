@@ -21,7 +21,7 @@ impl Pubky {
     #[wasm_bindgen(constructor)]
     pub fn new() -> JsResult<Pubky> {
         let client = Client::new(None)?;
-        Ok(Pubky(std::sync::Arc::new(pubky::Pubky::with_client(client.0))))
+        Ok(Pubky(pubky::Pubky::with_client(client.0)))
     }
 
     /// Create a Pubky facade preconfigured for a **local testnet**.
@@ -38,7 +38,7 @@ impl Pubky {
     #[wasm_bindgen(js_name = "testnet")]
     pub fn testnet(host: Option<String>) -> JsResult<Pubky> {
         let client = Client::testnet(host)?;
-        Ok(Pubky(std::sync::Arc::new(pubky::Pubky::with_client(client.0))))
+        Ok(Pubky(pubky::Pubky::with_client(client.0)))
     }
 
     /// Wrap an existing configured HTTP client into a Pubky facade.
@@ -51,7 +51,7 @@ impl Pubky {
     /// const pubky = Pubky.withClient(client);
     #[wasm_bindgen(js_name = "withClient")]
     pub fn with_client(client: &Client) -> Pubky {
-        Pubky(std::sync::Arc::new(pubky::Pubky::with_client(client.0.clone())))
+        Pubky(pubky::Pubky::with_client(client.0.clone()))
     }
 
     /// Start a **pubkyauth** flow.

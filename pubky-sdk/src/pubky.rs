@@ -93,8 +93,8 @@ impl Pubky {
 
     /// Construct from an already-configured transport.
     #[must_use]
-    pub const fn with_client(client: PubkyHttpClient) -> Self {
-        Self { client }
+    pub fn with_client(client: PubkyHttpClient) -> Arc<Self> {
+        Arc::new(Self { client })
     }
 
     /// Start an end-to-end auth flow (QR/deeplink).

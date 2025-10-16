@@ -170,7 +170,7 @@ impl Testnet {
     ///
     /// This is a convenience method that builds a client from `Self::client_builder`.
     pub fn sdk(&self) -> Result<std::sync::Arc<Pubky>, pubky::BuildError> {
-        Ok(std::sync::Arc::new(Pubky::with_client(self.client()?)))
+        Ok(Pubky::with_client(self.client()?))
     }
 
     /// Create a [pkarr::ClientBuilder] and configure it to use this local test network.
