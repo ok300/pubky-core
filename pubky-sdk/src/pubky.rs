@@ -94,7 +94,7 @@ impl Pubky {
     /// Construct from an already-configured transport.
     ///
     /// # Errors
-    /// - This function is infallible but returns Result for consistency with new() and testnet().
+    /// - This function is infallible but returns Result for consistency with `new()` and `testnet()`.
     pub fn with_client(client: PubkyHttpClient) -> Result<Arc<Self>> {
         Ok(Arc::new(Self { client }))
     }
