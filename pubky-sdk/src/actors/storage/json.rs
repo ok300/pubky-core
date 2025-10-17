@@ -32,7 +32,7 @@ impl SessionStorage {
         Ok(resp.json::<T>().await?)
     }
 
-    /// PUT JSON to an **absolute path** and return the raw `Response`.
+    /// PUT JSON to an **absolute path** and return the raw [Response].
     ///
     /// Serializes `body` as JSON.
     ///

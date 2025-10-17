@@ -9,7 +9,7 @@ use crate::{
 
 /// Storage that acts **as the signed-in user** (authenticated).
 ///
-/// Accepts **absolute paths** (`ResourcePath`) only; the user is implied by the session.
+/// Accepts **absolute paths** ([`ResourcePath`]) only; the user is implied by the session.
 /// Writes are allowed.
 ///
 /// Returned by [`PubkySession::storage()`].
@@ -77,7 +77,7 @@ impl SessionStorage {
 
 /// Storage that reads **public data for any user** (unauthenticated).
 ///
-/// Accepts **addressed resources** (`PubkyResource`: user + absolute path).
+/// Accepts **addressed resources** ([`PubkyResource`]: user + absolute path).
 /// Writes are not available.
 #[derive(Debug, Clone)]
 pub struct PublicStorage {
@@ -87,11 +87,11 @@ pub struct PublicStorage {
 impl PublicStorage {
     /// Create a public (unauthenticated) storage handle using a new client.
     ///
-    /// Tip: If you already have a `Pubky` facade, prefer `pubky.public_storage()`
+    /// Tip: If you already have a `crate::Pubky` facade, prefer `pubky.public_storage()`
     /// to reuse its underlying client and configuration.
     ///
     /// # Errors
-    /// - Returns [`crate::errors::Error`] if the underlying [`PubkyHttpClient`] cannot be constructed.
+    /// - Returns [`crate::errors::Error`] if the underlying [PubkyHttpClient] cannot be constructed.
     pub fn new() -> Result<Self> {
         Ok(Self {
             client: PubkyHttpClient::new()?,

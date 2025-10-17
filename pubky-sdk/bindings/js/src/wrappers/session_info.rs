@@ -12,7 +12,7 @@ pub struct SessionInfo(pub(crate) session::SessionInfo);
 impl SessionInfo {
     /// The user’s public key for this session.
     ///
-    /// Use `.z32()` on the returned `PublicKey` to get the string form.
+    /// Use `.z32()` on the returned [`PublicKey`] to get the string form.
     ///
     /// @returns {PublicKey}
     ///

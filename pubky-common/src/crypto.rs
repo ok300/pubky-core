@@ -29,7 +29,7 @@ pub fn random_bytes<const N: usize>() -> [u8; N] {
     arr
 }
 
-/// Encrypt a message using `XSalsa20Poly1305`.
+/// Encrypt a message using [`XSalsa20Poly1305`].
 pub fn encrypt(plain_text: &[u8], encryption_key: &[u8; 32]) -> Vec<u8> {
     if plain_text.is_empty() {
         return plain_text.to_vec();
@@ -48,7 +48,7 @@ pub fn encrypt(plain_text: &[u8], encryption_key: &[u8; 32]) -> Vec<u8> {
     out
 }
 
-/// Encrypt an encrypted message using `XSalsa20Poly1305`.
+/// Encrypt an encrypted message using [`XSalsa20Poly1305`].
 pub fn decrypt(bytes: &[u8], encryption_key: &[u8; 32]) -> Result<Vec<u8>, DecryptError> {
     if bytes.is_empty() {
         return Ok(bytes.to_vec());

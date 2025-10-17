@@ -34,7 +34,7 @@ fn normalize_and_collect(input: &str) -> (String, Vec<String>) {
 /// Validate and normalize a capabilities string.
 ///
 /// - Normalizes action order (`wr` -> `rw`)
-/// - Throws `InvalidInput` listing malformed entries.
+/// - Throws [`InvalidInput`] listing malformed entries.
 ///
 /// @param {string} input
 /// @returns {string} Normalized string (same shape as input).

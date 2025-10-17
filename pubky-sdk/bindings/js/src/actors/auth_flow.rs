@@ -13,7 +13,7 @@ use crate::{
 /// Typical flow:
 /// 1) `AuthFlow.start(...)` or `pubky.startAuthFlow(...)`
 /// 2) Show `authorizationUrl()` as QR/deeplink to the user’s signing device
-/// 3) `awaitApproval()` to receive a ready `Session`
+/// 3) `awaitApproval()` to receive a ready [`Session`]
 #[wasm_bindgen]
 pub struct AuthFlow(pub(crate) pubky::PubkyAuthFlow);
 
@@ -35,7 +35,7 @@ impl AuthFlow {
     ///
     /// @returns {AuthFlow}
     /// A running auth flow. Call `authorizationUrl()` to show the deep link,
-    /// then `awaitApproval()` to receive a `Session`.
+    /// then `awaitApproval()` to receive a [`Session`].
     /// @throws {PubkyError}
     /// - `{ name: "InvalidInput", message: string }` if any capability entry is invalid
     ///     or for an invalid relay URL.
@@ -85,7 +85,7 @@ impl AuthFlow {
         self.0.authorization_url().as_str().to_string()
     }
 
-    /// Block until the user approves on their signer device; returns a `Session`.
+    /// Block until the user approves on their signer device; returns a [`Session`].
     ///
     /// @returns {Promise<Session>}
     /// Resolves when approved; rejects on timeout/cancel/network errors.
@@ -98,7 +98,7 @@ impl AuthFlow {
         Ok(Session(self.0.await_approval().await?))
     }
 
-    /// Block until the user approves on their signer device; returns an `AuthToken`.
+    /// Block until the user approves on their signer device; returns an [`AuthToken`].
     ///
     /// @returns {Promise<AuthToken>}
     /// Resolves when approved; rejects on timeout/cancel/network errors.

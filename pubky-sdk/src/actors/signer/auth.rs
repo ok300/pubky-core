@@ -17,10 +17,10 @@ use super::PubkySigner;
 
 impl PubkySigner {
     /// Produces sessions for an app (e.g. Pubky Ring -> App). Sends a signed
-    /// `AuthToken` to the relay channel encoded in a `pubkyauth://` URL.
+    /// [`AuthToken`] to the relay channel encoded in a `pubkyauth://` URL.
     ///
     /// Typical usage:
-    /// - App constructs `PubkyAuthFlow` and subscribe, shows QR/deeplink.
+    /// - App constructs `crate::PubkyAuthFlow` and subscribe, shows QR/deeplink.
     /// - Signer calls `send_auth_token` with that URL.
     ///
     /// Requirements:

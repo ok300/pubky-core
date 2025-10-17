@@ -8,7 +8,7 @@ use anyhow::Result;
 use pkarr::PublicKey;
 use std::path::PathBuf;
 
-/// Errors that can occur when building a `HomeserverSuite`.
+/// Errors that can occur when building a [HomeserverSuite].
 #[derive(thiserror::Error, Debug)]
 pub enum HomeserverSuiteBuildError {
     /// Failed to build the homeserver.

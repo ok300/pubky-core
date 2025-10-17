@@ -4,7 +4,7 @@ use super::{pkdns::Pkdns, session::Session};
 use crate::js_error::JsResult;
 use crate::wrappers::{keys::Keypair, keys::PublicKey};
 
-/// Holds a user’s `Keypair` and performs identity operations:
+/// Holds a user’s [`Keypair`] and performs identity operations:
 /// - `signup` creates a new homeserver user.
 /// - `signin` creates a homeserver session for an existing user.
 /// - Approve pubkyauth requests
@@ -14,7 +14,7 @@ pub struct Signer(pub(crate) pubky::PubkySigner);
 
 #[wasm_bindgen]
 impl Signer {
-    /// Create a signer from a `Keypair` (prefer `pubky.signer(kp)`).
+    /// Create a signer from a [`Keypair`] (prefer `pubky.signer(kp)`).
     ///
     /// @param {Keypair} keypair
     /// @returns {Signer}
@@ -32,7 +32,7 @@ impl Signer {
         self.0.public_key().into()
     }
 
-    /// Sign up at a homeserver. Returns a ready `Session`.
+    /// Sign up at a homeserver. Returns a ready [`Session`].
     ///
     /// Creates a valid homeserver Session with root capabilities
     ///

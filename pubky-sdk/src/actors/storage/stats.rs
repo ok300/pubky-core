@@ -8,7 +8,7 @@ pub struct ResourceStats {
     pub content_length: Option<u64>,
     /// `Content-Type` as sent by the server (verbatim).
     pub content_type: Option<String>,
-    /// `Last-Modified` parsed into `SystemTime` (RFC7231).
+    /// `Last-Modified` parsed into [`SystemTime`] (RFC7231).
     pub last_modified: Option<SystemTime>,
     /// `ETag` string.
     pub etag: Option<String>,

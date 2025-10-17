@@ -45,7 +45,7 @@ impl Client {
         // 3a) If needed, ensure `pubky-host` is present in *init.headers* BEFORE Request creation.
         if let Some(host) = pubky_host.as_deref() {
             // Try to read any existing headers off RequestInit via reflection.
-            // This value can be: undefined/null (no headers), a real `Headers`, or
+            // This value can be: undefined/null (no headers), a real [`Headers`], or
             // a plain object/array. We handle those cases explicitly.
             let headers_js = Reflect::get(req_init.as_ref(), &JsValue::from_str("headers"))
                 .unwrap_or(JsValue::UNDEFINED);
@@ -56,13 +56,13 @@ impl Client {
                 headers.set("pubky-host", host)?;
                 req_init.set_headers(&headers.into());
             } else if headers_js.is_instance_of::<Headers>() {
-                // Already a `Headers` object -> mutate in place (don’t replace).
+                // Already a [`Headers`] object -> mutate in place (don’t replace).
                 let headers: Headers = headers_js.unchecked_into();
                 headers.set("pubky-host", host)?;
                 // No need to set_headers again; we mutated the same object.
             } else {
-                // Some non-`Headers` thing (e.g., plain object/array).
-                // Clone caller-provided entries into a fresh `Headers` before appending ours.
+                // Some non-[`Headers`] thing (e.g., plain object/array).
+                // Clone caller-provided entries into a fresh [`Headers`] before appending ours.
                 let headers = Headers::new()?;
                 let entries = Object::entries(headers_js.unchecked_ref());
 

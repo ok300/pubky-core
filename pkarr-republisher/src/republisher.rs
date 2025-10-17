@@ -177,7 +177,7 @@ impl Republisher {
         })
     }
 
-    /// Exponential backoff delay starting with `INITIAL_DELAY_MS` and maxing out at  `MAX_DELAY_MS`
+    /// Exponential backoff delay starting with `INITIAL_DELAY_MS` and maxing out at `MAX_DELAY_MS`
     fn get_retry_delay(&self, retry_count: u8) -> Duration {
         let initial_ms = self.retry_settings.initial_retry_delay.as_millis() as u64;
         let multiplicator = 2u64.pow(retry_count as u32);

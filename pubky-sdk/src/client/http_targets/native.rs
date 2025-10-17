@@ -32,10 +32,10 @@ impl PubkyHttpClient {
     /// On native targets, this is effectively a thin wrapper around [`PubkyHttpClient::request`],
     /// while on WASM it also performs host transformation and may add the `pubky-host` header.
     ///
-    /// Returns a [`Result`] containing the prepared `RequestBuilder`, or a URL/transport
+    /// Returns a [Result] containing the prepared [`RequestBuilder`], or a URL/transport
     /// parsing error if the supplied `url` is invalid.
     ///
-    /// [`PubkyHttpClient::request`]: crate::PubkyHttpClient::request
+    /// [PubkyHttpClient::request]: crate::PubkyHttpClient::request
     #[allow(
         clippy::unused_async,
         reason = "native implementation stays async to share the same signature as the WASM backend"
@@ -44,9 +44,9 @@ impl PubkyHttpClient {
         Ok(self.request(method, &url))
     }
 
-    /// Start building a `Request` with the `Method` and `Url` (native-only)
+    /// Start building a [`reqwest::Request`] with the [`reqwest::Method`] and [`reqwest::Url`] (native-only)
     ///
-    /// Returns a `RequestBuilder`, which will allow setting headers and
+    /// Returns a [`RequestBuilder`], which will allow setting headers and
     /// the request body before sending.
     ///
     /// Differs from [`reqwest::Client::request`], in that it can make requests to:

@@ -14,7 +14,7 @@ impl SessionStorage {
     /// Requirements:
     /// - Path **must** point to a directory and **must end with `/`**.
     ///
-    /// Returns addressed [`PubkyResource`] entries.
+    /// Returns addressed [PubkyResource] entries.
     ///
     /// # Example
     /// ```no_run
@@ -52,7 +52,7 @@ impl PublicStorage {
     /// Requirements:
     /// - Address **must** point to a directory and **must end with `/`**.
     ///
-    /// Returns addressed [`PubkyResource`] entries.
+    /// Returns addressed [PubkyResource] entries.
     ///
     /// # Errors
     /// - Returns [`crate::errors::RequestError::Validation`] if `addr` cannot be converted into an addressed directory ending with `/`.
@@ -79,7 +79,7 @@ enum ListScope<'a> {
 /// Configure optional flags like `reverse`, `shallow`, `limit`, and `cursor`,
 /// then call [`send`](Self::send) to perform the request.
 ///
-/// Returned entries are [`PubkyResource`] values.
+/// Returned entries are [PubkyResource] values.
 ///
 /// Built via:
 /// - [`SessionStorage::list`] for authenticated “as me” listings.

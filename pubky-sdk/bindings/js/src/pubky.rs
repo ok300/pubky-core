@@ -67,7 +67,7 @@ impl Pubky {
     /// @param {string=} relay Optional HTTP relay base (e.g. `"https://…/link/"`).
     /// @returns {AuthFlow}
     /// A running auth flow. Show `authorizationUrl` as QR/deeplink,
-    /// then `awaitApproval()` to obtain a `Session`.
+    /// then `awaitApproval()` to obtain a [`Session`].
     ///
     /// @throws {PubkyError}
     /// - `{ name: "InvalidInput" }` for malformed capabilities or bad relay URL
@@ -87,7 +87,7 @@ impl Pubky {
         Ok(flow)
     }
 
-    /// Create a `Signer` from an existing `Keypair`.
+    /// Create a [`Signer`] from an existing [`Keypair`].
     ///
     /// @param {Keypair} keypair The user’s keys.
     /// @returns {Signer}

@@ -144,7 +144,7 @@ impl PublicStorage {
         send_checked(rb).await
     }
 
-    /// HEAD existence check for an addressed resource.
+    /// `HEAD` existence check for an addressed resource.
     ///
     /// # Errors
     /// - Propagates transport failures while issuing the `HEAD` request.

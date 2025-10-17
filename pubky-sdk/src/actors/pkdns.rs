@@ -3,7 +3,7 @@
 //! - **Read-only (no keys):** `Pkdns::new()`
 //! - **Publish (with keys):** `Pkdns::new_with_keypair(..)` or `signer.pkdns()`
 //!
-//! Reads do not require a session or keys. Publishing requires a `Keypair`.
+//! Reads do not require a session or keys. Publishing requires a [`Keypair`].
 
 use std::time::Duration;
 
@@ -72,7 +72,7 @@ impl Pkdns {
     /// Construct a read-only PKDNS actor.
     ///
     /// # Errors
-    /// - Returns [`crate::errors::Error`] if the underlying [`PubkyHttpClient`] cannot be created.
+    /// - Returns [`crate::errors::Error`] if the underlying [PubkyHttpClient] cannot be created.
     pub fn new() -> Result<Self> {
         Ok(Self {
             client: PubkyHttpClient::new()?,
@@ -84,7 +84,7 @@ impl Pkdns {
     /// Construct a publishing-capable PKDNS actor.
     ///
     /// # Errors
-    /// - Returns [`crate::errors::Error`] if the underlying [`PubkyHttpClient`] cannot be created.
+    /// - Returns [`crate::errors::Error`] if the underlying [PubkyHttpClient] cannot be created.
     pub fn new_with_keypair(keypair: Keypair) -> Result<Self> {
         Ok(Self {
             client: PubkyHttpClient::new()?,

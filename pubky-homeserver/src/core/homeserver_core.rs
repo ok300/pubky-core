@@ -36,7 +36,7 @@ pub(crate) struct AppState {
 
 const INITIAL_DELAY_BEFORE_REPUBLISH: Duration = Duration::from_secs(60);
 
-/// Errors that can occur when building a `HomeserverCore`.
+/// Errors that can occur when building a [HomeserverCore].
 #[derive(Debug, thiserror::Error)]
 pub enum HomeserverBuildError {
     /// Failed to run the key republisher.
@@ -53,7 +53,7 @@ pub enum HomeserverBuildError {
     AppContext(AppContextConversionError),
 }
 
-/// A side-effect-free Core of the [crate::Homeserver].
+/// A side-effect-free Core of the `Homeserver`.
 pub struct HomeserverCore {
     #[allow(dead_code)]
     // Keep this alive. Republishing is stopped when the UserKeysRepublisher is dropped.

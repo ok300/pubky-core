@@ -10,9 +10,9 @@ use crate::{
 #[cfg(not(target_arch = "wasm32"))]
 use crate::errors::AuthError;
 
-/// Stateful, per-identity API driver built on a shared [`PubkyHttpClient`].
+/// Stateful, per-identity API driver built on a shared [PubkyHttpClient].
 ///
-/// An `PubkySession` represents one user/identity. It optionally holds a `Keypair` (for
+/// An [`PubkySession`] represents one user/identity. It optionally holds a `Keypair` (for
 /// self-signed flows like `signin()`/`signup()`), and always tracks the user’s `pubky`
 /// (either from the keypair or learned later via the pubkyauth flow). On native targets,
 /// each agent also owns exactly one session cookie secret; cookies never leak across agents.
@@ -24,11 +24,11 @@ use crate::errors::AuthError;
 /// - Implements identity flows: `signup`, `signin`, `signout`, `session`, and pubkyauth.
 ///
 /// When to use:
-/// - Use `PubkySession` whenever you’re acting “as a user” against a Pubky homeserver.
-/// - Use `PubkyHttpClient` only for raw transport or unauthenticated/public operations.
+/// - Use [`PubkySession`] whenever you’re acting “as a user” against a Pubky homeserver.
+/// - Use [`PubkyHttpClient`] only for raw transport or unauthenticated/public operations.
 ///
 /// Concurrency:
-/// - `PubkySession` is cheap to clone and thread-safe; it shares the underlying `PubkyHttpClient`.
+/// - [`PubkySession`] is cheap to clone and thread-safe; it shares the underlying [`PubkyHttpClient`].
 #[derive(Clone)]
 pub struct PubkySession {
     pub(crate) client: PubkyHttpClient,
@@ -42,10 +42,10 @@ pub struct PubkySession {
 }
 
 impl PubkySession {
-    /// Establish a session from a signed [`AuthToken`].
+    /// Establish a session from a signed [AuthToken].
     ///
     /// This POSTs the resolved homeserver session endpoint with the token, validates the response
-    /// and constructs a new session-bound [`PubkySession`]
+    /// and constructs a new session-bound [PubkySession]
     pub(crate) async fn new(token: &AuthToken, client: PubkyHttpClient) -> Result<Self> {
         let url = format!("pubky://{}/session", token.public_key());
         cross_log!(
@@ -72,7 +72,7 @@ impl PubkySession {
 
     /// Construct a session **from a successful `/session` or `/signup` response**.
     ///
-    /// - Reads the `SessionInfo` body (to learn the user pubky).
+    /// - Reads the [`SessionInfo`] body (to learn the user pubky).
     /// - On native, selects `<pubky>=<secret>` from the saved `Set-Cookie` headers.
     pub(crate) async fn new_from_response(
         client: PubkyHttpClient,
@@ -125,7 +125,7 @@ impl PubkySession {
         &self.info
     }
 
-    /// Returns a reference to the internal `PubkyHttpClient`
+    /// Returns a reference to the internal [`PubkyHttpClient`]
     /// Raw transport handle. No per-session cookie injection. Use `storage()` for
     /// authenticated, session-scoped requests.
     #[must_use]
@@ -213,7 +213,7 @@ impl PubkySession {
     /// - Requests that target this user’s homeserver automatically carry the
     ///   session cookie.
     ///
-    /// See [`SessionStorage`] for usage examples.
+    /// See [SessionStorage] for usage examples.
     #[must_use]
     pub fn storage(&self) -> SessionStorage {
         cross_log!(

@@ -3,11 +3,11 @@
 //! # Why two address shapes?
 //! Pubky paths come in two *disjoint* forms, each used by a different part of the API:
 //!
-//! - [`ResourcePath`]: an **absolute**, URL-safe path like `"/pub/my.app/file"`.
+//! - [ResourcePath]: an **absolute**, URL-safe path like `"/pub/my.app/file"`.
 //!   It contains **no user** information and is used by *session-scoped* (authenticated)
 //!   operations that act “as me”. Example: `session.storage().get("/pub/my.app/file")`.
 //!
-//! - [`PubkyResource`]: an **addressed resource** that pairs a user with an absolute path,
+//! - [PubkyResource]: an **addressed resource** that pairs a user with an absolute path,
 //!   e.g. `"pubky<public_key>/pub/my.app/file"` (preferred) or `pubky://<public_key>/pub/my.app/file`.
 //!   It is used by *public* (unauthenticated) operations and any API that must
 //!   target **another user’s** data. Example: `public.get("pubky<pk>/pub/site/index.html")`.
@@ -157,7 +157,7 @@ impl fmt::Display for ResourcePath {
 /// This is the unambiguous “user + absolute path” form used when acting on
 /// **another user’s** data (public reads, etc.).
 ///
-/// Accepted inputs for `FromStr`:
+/// Accepted inputs for [`FromStr`]:
 /// - `pubky<public_key>/<abs-path>` (preferred)
 /// - `pubky://<public_key>/<abs-path>`
 ///
@@ -187,10 +187,10 @@ pub struct PubkyResource {
 }
 
 impl PubkyResource {
-    /// Construct from `owner` and a path-like value (normalized to [`ResourcePath`]).
+    /// Construct from `owner` and a path-like value (normalized to [ResourcePath]).
     ///
     /// # Errors
-    /// - Returns [`Error::Request`] if the provided path cannot be normalized into an absolute [`ResourcePath`].
+    /// - Returns [`Error::Request`] if the provided path cannot be normalized into an absolute [ResourcePath].
     pub fn new<S: AsRef<str>>(owner: PublicKey, path: S) -> Result<Self, Error> {
         Ok(Self {
             owner,
@@ -202,7 +202,7 @@ impl PubkyResource {
     ///
     /// Useful when storing or sharing canonical identifiers that include the
     /// owner’s public key. The returned string never contains a leading
-    /// double-slash in the path (`pubky://<pk>//...`) because [`ResourcePath`]
+    /// double-slash in the path (`pubky://<pk>//...`) because [ResourcePath]
     /// is always normalized.
     #[must_use]
     pub fn to_pubky_url(&self) -> String {
@@ -224,7 +224,7 @@ impl PubkyResource {
         Ok(Url::parse(&https)?)
     }
 
-    /// Construct a [`PubkyResource`] from a homeserver transport URL.
+    /// Construct a [PubkyResource] from a homeserver transport URL.
     ///
     /// Accepts either `https://_pubky.<owner>/...` or `http://_pubky.<owner>/...`
     /// (the latter is mainly useful in local testnets).
@@ -302,7 +302,7 @@ impl fmt::Display for PubkyResource {
 /// bridge human-facing identifiers with low-level HTTP clients.
 ///
 /// # Errors
-/// - Returns [`Error::Request`] if the identifier cannot be parsed into a [`PubkyResource`].
+/// - Returns [`Error::Request`] if the identifier cannot be parsed into a [PubkyResource].
 /// - Propagates errors from [`PubkyResource::to_transport_url`] when building the transport URL.
 pub fn resolve_pubky<S: AsRef<str>>(input: S) -> Result<Url, Error> {
     let resource: PubkyResource = input.as_ref().parse()?;
@@ -313,10 +313,10 @@ pub fn resolve_pubky<S: AsRef<str>>(input: S) -> Result<Url, Error> {
 // Conversion traits
 // ============================================================================
 
-/// Convert common input types into a normalized [`ResourcePath`] (absolute).
+/// Convert common input types into a normalized [ResourcePath] (absolute).
 ///
 /// This trait is intentionally implemented for the “obvious” path-like things:
-/// - `ResourcePath` / `&ResourcePath` (pass-through / clone)
+/// - [ResourcePath] / `&ResourcePath` (pass-through / clone)
 /// - `&str`, `String`, and `&String`
 ///
 /// It is used by *session-scoped* storage methods (`SessionStorage`) that act as
@@ -335,7 +335,7 @@ pub fn resolve_pubky<S: AsRef<str>>(input: S) -> Result<Url, Error> {
 /// # Ok::<(), pubky::Error>(())
 /// ```
 pub trait IntoResourcePath {
-    /// Convert into a validated, normalized absolute [`ResourcePath`].
+    /// Convert into a validated, normalized absolute [ResourcePath].
     ///
     /// # Errors
     /// - Returns [`Error::Request`] if the input cannot be normalized into a valid absolute path.
@@ -370,10 +370,10 @@ impl IntoResourcePath for &String {
     }
 }
 
-/// Convert common input types into a normalized, **addressed** [`PubkyResource`].
+/// Convert common input types into a normalized, **addressed** [PubkyResource].
 ///
 /// Implementations:
-/// - `PubkyResource` / `&PubkyResource` (pass-through / clone)
+/// - [`PubkyResource`] / `&PubkyResource` (pass-through / clone)
 /// - `&str`, `String`, `&String` parsed as `pubky<pk>/<abs-path>` or `pubky://<pk>/<abs-path>`
 /// - `(PublicKey, P: AsRef<str>)` and `(&PublicKey, P: AsRef<str>)` to pair a key with a path
 ///
@@ -397,7 +397,7 @@ impl IntoResourcePath for &String {
 /// # Ok::<(), pubky::Error>(())
 /// ```
 pub trait IntoPubkyResource {
-    /// Convert into a validated, normalized [`PubkyResource`].
+    /// Convert into a validated, normalized [PubkyResource].
     ///
     /// # Errors
     /// - Returns [`Error::Request`] if the input cannot be parsed into an addressed resource.

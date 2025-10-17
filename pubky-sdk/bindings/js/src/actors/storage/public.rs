@@ -44,7 +44,7 @@ impl PublicStorage {
         super::utils::apply_list_options(builder, cursor, reverse, limit, shallow).await
     }
 
-    /// Perform a streaming `GET` and expose the raw `Response` object.
+    /// Perform a streaming `GET` and expose the raw [`Response`] object.
     ///
     /// @param {Address} address
     /// @returns {Promise<Response>}

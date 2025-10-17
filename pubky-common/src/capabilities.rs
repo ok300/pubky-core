@@ -134,7 +134,7 @@ impl Capability {
     }
 }
 
-/// Fluent builder for a single [`Capability`].
+/// Fluent builder for a single [Capability].
 ///
 /// Use [`Capability::builder`] to construct, then chain `.read()/.write()` and `.finish()`.
 #[derive(Debug, Default)]
@@ -162,7 +162,7 @@ impl CapabilityBuilder {
         self
     }
 
-    /// Finalize and produce the [`Capability`].
+    /// Finalize and produce the [Capability].
     ///
     /// Actions are de-duplicated and emitted in a stable order.
     pub fn finish(self) -> Capability {
@@ -385,7 +385,7 @@ impl Capabilities {
     }
 }
 
-/// Fluent builder for multiple [`Capability`] entries.
+/// Fluent builder for multiple [Capability] entries.
 ///
 /// Build with high-level helpers (`.read()/.write()/.read_write()`), or push prebuilt
 /// capabilities with `.cap()`, or use `.capability(scope, |b| ...)` to build inline.
@@ -448,7 +448,7 @@ impl CapsBuilder {
         self
     }
 
-    /// Finalize and produce the [`Capabilities`] list.
+    /// Finalize and produce the [Capabilities] list.
     pub fn finish(self) -> Capabilities {
         Capabilities(sanitize_caps(self.caps))
     }

@@ -22,7 +22,7 @@ impl Default for HttpError {
 }
 
 impl HttpError {
-    /// Create a new [`Error`].
+    /// Create a new [Error].
     pub fn new_with_message(status_code: StatusCode, message: impl ToString) -> HttpError {
         Self {
             status: status_code,

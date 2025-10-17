@@ -1,10 +1,10 @@
 //! High-level facade for the Pubky crate.
 //!
 //! ## Mental model
-//! - `Pubky` - your entrypoint/handle to the SDK. Owns a `PubkyHttpClient`.
-//! - `Signer` - local private keys; can `signin`/`signup`, publish PKDNS, approve auth requests.
-//! - `Session` - authenticated, “as me” API; exposes scoped storage.
-//! - `PublicStorage` - unauthenticated, “read others” API.
+//! - [`Pubky`] - your entrypoint/handle to the SDK. Owns a `PubkyHttpClient`.
+//! - [`Signer`] - local private keys; can `signin`/`signup`, publish PKDNS, approve auth requests.
+//! - [`Session`] - authenticated, “as me” API; exposes scoped storage.
+//! - [`PublicStorage`] - unauthenticated, “read others” API.
 //!
 //! ## Quick starts
 //! ### 1) App sign-in via QR/deeplink (auth flow)
@@ -61,7 +61,7 @@ use crate::{PubkySession, errors::RequestError};
 #[cfg(not(target_arch = "wasm32"))]
 use std::path::Path;
 
-/// High-level facade. Owns a `PubkyHttpClient` and constructs the main actors.
+/// High-level facade. Owns a [`PubkyHttpClient`] and constructs the main actors.
 #[derive(Clone, Debug)]
 pub struct Pubky {
     client: PubkyHttpClient,
@@ -71,7 +71,7 @@ impl Pubky {
     /// Construct with defaults (mainnet relays, standard timeouts).
     ///
     /// # Errors
-    /// - Returns [`crate::errors::Error`] when the underlying [`PubkyHttpClient`] fails to
+    /// - Returns [`crate::errors::Error`] when the underlying [PubkyHttpClient] fails to
     ///   initialize (e.g., TLS configuration or relay/bootstrap setup issues).
     pub fn new() -> Result<Self> {
         Ok(Self {
@@ -82,7 +82,7 @@ impl Pubky {
     /// Construct preconfigured for a local Pubky testnet.
     ///
     /// # Errors
-    /// - Returns [`crate::errors::Error`] when the testnet-configured [`PubkyHttpClient`]
+    /// - Returns [`crate::errors::Error`] when the testnet-configured [PubkyHttpClient]
     ///   cannot be created (for example, invalid local relay/testnet configuration).
     pub fn testnet() -> Result<Self> {
         Ok(Self {
@@ -110,7 +110,7 @@ impl Pubky {
             .start()
     }
 
-    /// Create a `PubkySigner` for a given keypair.
+    /// Create a [`PubkySigner`] for a given keypair.
     #[must_use]
     pub fn signer(&self, keypair: crate::Keypair) -> PubkySigner {
         PubkySigner {
@@ -127,7 +127,7 @@ impl Pubky {
         }
     }
 
-    /// Read-only [`Pkdns`] actor (resolve `_pubky` records) using this facade’s client.
+    /// Read-only [Pkdns] actor (resolve `_pubky` records) using this facade’s client.
     #[must_use]
     pub fn pkdns(&self) -> Pkdns {
         Pkdns::with_client(self.client.clone())
@@ -137,7 +137,7 @@ impl Pubky {
     ///
     /// Returns the `_pubky` SVCB/HTTPS target (domain or pubkey-as-host),
     /// or `None` if the record is missing/unresolvable. Uses an internal
-    /// read-only [`Pkdns`] actor.
+    /// read-only [Pkdns] actor.
     pub async fn get_homeserver_of(&self, user_public_key: &PublicKey) -> Option<PublicKey> {
         Pkdns::with_client(self.client.clone())
             .get_homeserver_of(user_public_key)
@@ -158,7 +158,7 @@ impl Pubky {
         PubkySession::from_secret_file(path.as_ref(), Some(self.client.clone())).await
     }
 
-    /// Recover a keypair from an encrypted `.pkarr` secret file and return a [`PubkySigner`].
+    /// Recover a keypair from an encrypted `.pkarr` secret file and return a [PubkySigner].
     ///
     /// # Errors
     /// - Returns [`crate::errors::Error::Request`] when reading the recovery file fails.

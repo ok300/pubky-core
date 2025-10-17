@@ -37,7 +37,7 @@
 //!
 //! ## How it works (security)
 //! Each flow generates a random `client_secret` (32 bytes). The relay **channel id**
-//! is `base64url( hash(client_secret) )`. The signer encrypts an `AuthToken` with
+//! is `base64url( hash(client_secret) )`. The signer encrypts an [AuthToken] with
 //! `client_secret` and POSTs it to the channel; your app long-polls `GET` on the same
 //! URL and decrypts the payload locally. The relay **cannot decrypt anything**, it
 //! simply forwards bytes.
@@ -109,7 +109,7 @@ impl PubkyAuthFlow {
     /// Spawns the background poller immediately and returns a handle.
     ///
     /// # Errors
-    /// - Returns [`crate::errors::Error`] if constructing the backing [`PubkyHttpClient`]
+    /// - Returns [`crate::errors::Error`] if constructing the backing [PubkyHttpClient]
     ///   or generating the relay URL fails.
     pub fn start(caps: &Capabilities) -> Result<Self> {
         PubkyAuthFlowBuilder::new(caps.clone()).start()
@@ -132,7 +132,7 @@ impl PubkyAuthFlow {
     /// Block until the signer approves and the server issues a session.
     ///
     /// This awaits the background poller’s result, verifies/decrypts the token,
-    /// and completes the `/session` exchange to return a ready-to-use [`PubkySession`].
+    /// and completes the `/session` exchange to return a ready-to-use [PubkySession].
     ///
     /// # Errors
     /// - Returns [`crate::errors::Error::Authentication`] if the relay channel expires before approval.
@@ -144,7 +144,7 @@ impl PubkyAuthFlow {
         PubkySession::new(&token, client).await
     }
 
-    /// Block until the signer approves and we receive an [`AuthToken`].
+    /// Block until the signer approves and we receive an [AuthToken].
     ///
     /// This awaits the background poller’s result.
     ///
@@ -178,7 +178,7 @@ impl PubkyAuthFlow {
         Ok(None)
     }
 
-    /// Non-blocking check: returns a verified `AuthToken` if the background poller has delivered it.
+    /// Non-blocking check: returns a verified [`AuthToken`] if the background poller has delivered it.
     ///
     /// - `Some(Ok(AuthToken))` when ready.
     /// - `Some(Err(_))` if the background task failed (expired/transport error).
@@ -327,9 +327,9 @@ impl Drop for PubkyAuthFlow {
     }
 }
 
-/// Builder for [`PubkyAuthFlow`].
+/// Builder for [PubkyAuthFlow].
 ///
-/// Use to override the HTTP relay and/or the `PubkyHttpClient`.
+/// Use to override the HTTP relay and/or the [`PubkyHttpClient`].
 #[derive(Debug, Clone)]
 pub struct PubkyAuthFlowBuilder {
     caps: Capabilities,
@@ -353,7 +353,7 @@ impl PubkyAuthFlowBuilder {
         self
     }
 
-    /// Provide a custom `PubkyHttpClient` (e.g., with custom TLS, roots, or test wiring).
+    /// Provide a custom [`PubkyHttpClient`] (e.g., with custom TLS, roots, or test wiring).
     pub fn client(mut self, client: PubkyHttpClient) -> Self {
         self.client = Some(client);
         self

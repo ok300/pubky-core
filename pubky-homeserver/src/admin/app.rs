@@ -53,7 +53,7 @@ fn create_app(state: AppState, password: &str) -> axum::routing::IntoMakeService
     with_trace_layer(app).into_make_service()
 }
 
-/// Errors that can occur when building a `AdminServer`.
+/// Errors that can occur when building a [AdminServer].
 #[derive(thiserror::Error, Debug)]
 pub enum AdminServerBuildError {
     /// Failed to create admin server.

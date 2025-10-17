@@ -95,7 +95,7 @@ impl Testnet {
 
     /// Run a new Pkarr relay.
     ///
-    /// You can access the list of relays at [Self::pkarr_relays].
+    /// You can access the list of relays at `pkarr_relays`.
     pub async fn create_pkarr_relay(&mut self) -> Result<Url> {
         let dir = tempfile::tempdir()?;
         let mut builder = pkarr_relay::Relay::builder();

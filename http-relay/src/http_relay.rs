@@ -1,4 +1,4 @@
-//! https://httprelay.io/features/link/
+//! <https://httprelay.io/features/link/>
 
 use std::{
     net::{SocketAddr, TcpListener},

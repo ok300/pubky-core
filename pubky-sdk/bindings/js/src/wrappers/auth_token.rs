@@ -19,7 +19,7 @@
 //    // server -> AuthToken.verify(bytes)
 //
 //  NOTE: `AuthToken.verify(bytes)` does **not** require network access. It checks:
-//    - version, signature, allowed timestamp window, replay protection (if using `AuthVerifier` on server).
+//    - version, signature, allowed timestamp window, replay protection (if using [`AuthVerifier`] on server).
 //
 
 use wasm_bindgen::prelude::*;
@@ -49,7 +49,7 @@ use crate::wrappers::keys::PublicKey;
 /// ```
 ///
 /// ### Binary format
-/// `AuthToken` serializes to a canonical binary (postcard) form; use [`AuthToken.toBytes()`] to get a
+/// [`AuthToken`] serializes to a canonical binary (postcard) form; use [`AuthToken.toBytes()`] to get a
 /// `Uint8Array`, and [`AuthToken.verify()`] to parse + verify on the server.
 #[wasm_bindgen]
 pub struct AuthToken(pub(crate) pubky::AuthToken);
@@ -60,7 +60,7 @@ impl AuthToken {
     // Constructors / statics
     // ---------------------------------------------------------------------
 
-    /// Parse and verify an `AuthToken` from its canonical bytes.
+    /// Parse and verify an [`AuthToken`] from its canonical bytes.
     ///
     /// - Verifies version, timestamp freshness window, and signature.
     /// - Throws on invalid/expired/unknown version.
@@ -83,7 +83,7 @@ impl AuthToken {
         Ok(AuthToken(token))
     }
 
-    /// Deserialize an `AuthToken` **without** verification.
+    /// Deserialize an [`AuthToken`] **without** verification.
     ///
     /// Most apps should call [`AuthToken.verify()`]. This is provided for tooling or diagnostics
     /// where you want to inspect the structure first.
@@ -102,7 +102,7 @@ impl AuthToken {
 
     /// Returns the **public key** that authenticated with this token.
     ///
-    /// Use `.z32()` on the returned `PublicKey` to get the string form.
+    /// Use `.z32()` on the returned [`PublicKey`] to get the string form.
     ///
     /// @example
     /// const who = sessionInfo.publicKey.z32();

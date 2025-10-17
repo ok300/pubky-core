@@ -37,7 +37,7 @@ where
             .cloned()
             .ok_or((
                 StatusCode::INTERNAL_SERVER_ERROR,
-                "Can't extract PubkyHost. Is `PubkyHostLayer` enabled?",
+                "Can't extract PubkyHost. Is [PubkyHostLayer] enabled?",
             ))
             .map_err(|e| e.into_response())?;
 

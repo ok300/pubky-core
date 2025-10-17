@@ -70,7 +70,7 @@ impl Display for PubkyErrorName {
 ///
 /// @property name - A machine-readable error code from {@link PubkyErrorName}. Use this for programmatic error handling.
 /// @property message - A human-readable, descriptive error message suitable for logging.
-/// @property data - An optional payload containing structured context for an error. For a `RequestError`, this may contain an object with the HTTP status code, e.g., `{ statusCode: 404 }`.
+/// @property data - An optional payload containing structured context for an error. For a [`RequestError`], this may contain an object with the HTTP status code, e.g., `{ statusCode: 404 }`.
 ///
 /// @example
 /// ```typescript
@@ -148,7 +148,7 @@ const TS_PUBKY_ERROR: &str = r#"/**
  *
  * @property name - A machine-readable error code from {@link PubkyErrorName}. Use this for programmatic error handling.
  * @property message - A human-readable, descriptive error message suitable for logging.
- * @property data - An optional payload containing structured context for an error. For a `RequestError`, this may contain an object with the HTTP status code, e.g., `{ statusCode: 404 }`.
+ * @property data - An optional payload containing structured context for an error. For a [`RequestError`], this may contain an object with the HTTP status code, e.g., `{ statusCode: 404 }`.
  *
  * @example
  * ```typescript
@@ -176,7 +176,7 @@ export interface PubkyError extends Error {
 
 // --- Rust-to-JavaScript pubky::Error Conversion Pipeline ---
 
-/// Converts a native `pubky::Error` into a `PubkyError`.
+/// Converts a native [`pubky::Error`] into a [`PubkyError`].
 impl From<pubky::Error> for PubkyError {
     fn from(err: pubky::Error) -> Self {
         let name = match &err {
@@ -195,28 +195,28 @@ impl From<pubky::Error> for PubkyError {
     }
 }
 
-/// Converts a `pubky::BuildError` into a `PubkyError`.
+/// Converts a [`pubky::BuildError`] into a [`PubkyError`].
 impl From<BuildError> for PubkyError {
     fn from(err: BuildError) -> Self {
         Self::new(PubkyErrorName::InternalError, err)
     }
 }
 
-/// Converts a `pubky_common::recovery_file::Error` into a `PubkyError`.
+/// Converts a `pubky_common::recovery_file::Error` into a [`PubkyError`].
 impl From<RecoveryFileError> for PubkyError {
     fn from(err: RecoveryFileError) -> Self {
         Self::new(PubkyErrorName::ClientStateError, err)
     }
 }
 
-/// Converts a `pubky_common::capabilities::Error` into a `PubkyError`.
+/// Converts a `pubky_common::capabilities::Error` into a [`PubkyError`].
 impl From<CapabilitiesError> for PubkyError {
     fn from(err: CapabilitiesError) -> Self {
         Self::new(PubkyErrorName::InvalidInput, err.to_string())
     }
 }
 
-/// Converts an AuthToken parsing/verification error into a `PubkyError`.
+/// Converts an AuthToken parsing/verification error into a [`PubkyError`].
 impl From<AuthTokenError> for PubkyError {
     fn from(err: AuthTokenError) -> Self {
         // Treat any token parse/verify failure as an authentication failure.
@@ -225,21 +225,21 @@ impl From<AuthTokenError> for PubkyError {
     }
 }
 
-/// Converts a `url::ParseError` into a `PubkyError`.
+/// Converts a `url::ParseError` into a [`PubkyError`].
 impl From<url::ParseError> for PubkyError {
     fn from(err: url::ParseError) -> Self {
         Self::new(PubkyErrorName::InvalidInput, err)
     }
 }
 
-/// Converts a `pkarr::PublicKeyError` into a `PubkyError`.
+/// Converts a `pkarr::PublicKeyError` into a [`PubkyError`].
 impl From<PublicKeyError> for PubkyError {
     fn from(err: PublicKeyError) -> Self {
         Self::new(PubkyErrorName::InvalidInput, err)
     }
 }
 
-/// Converts a `serde_wasm_bindgen::Error` (JS <-> Rust value (de)serialization) into `PubkyError`.
+/// Converts a `serde_wasm_bindgen::Error` (JS <-> Rust value (de)serialization) into [`PubkyError`].
 impl From<serde_wasm_bindgen::Error> for PubkyError {
     fn from(err: serde_wasm_bindgen::Error) -> Self {
         // Treat bad JS values / schema mismatches as invalid input.
@@ -247,7 +247,7 @@ impl From<serde_wasm_bindgen::Error> for PubkyError {
     }
 }
 
-/// Converts a `reqwest::Error` into a `PubkyError`.
+/// Converts a `reqwest::Error` into a [`PubkyError`].
 impl From<reqwest::Error> for PubkyError {
     fn from(err: reqwest::Error) -> Self {
         // Try to propagate status when present
@@ -263,7 +263,7 @@ impl From<reqwest::Error> for PubkyError {
     }
 }
 
-/// Converts a generic `JsValue` error into a `PubkyError`.
+/// Converts a generic `JsValue` error into a [`PubkyError`].
 impl From<JsValue> for PubkyError {
     fn from(err: JsValue) -> Self {
         let message = err

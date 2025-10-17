@@ -30,7 +30,7 @@ impl PubkySession {
     /// Useful for scripts that need restarting. Helps avoiding a new Auth flow
     /// from a signer on a script restart.
     ///
-    /// Performs a `/session` roundtrip to validate and hydrate the authoritative `SessionInfo`.
+    /// Performs a `/session` roundtrip to validate and hydrate the authoritative [SessionInfo].
     /// Returns `AuthError::RequestExpired` if the cookie is invalid/expired.
     /// # Errors
     /// - Returns [`crate::errors::RequestError::Validation`] if the token is malformed or contains an invalid public key.

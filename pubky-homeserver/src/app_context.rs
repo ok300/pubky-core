@@ -2,7 +2,7 @@
 //! The application context shared between all components.
 //! Think of it as a simple Dependency Injection container.
 //!
-//! Create with a `DataDir` instance: `AppContext::try_from(data_dir)`
+//! Create with a [`DataDir`] instance: `AppContext::try_from(data_dir)`
 //!
 
 #[cfg(any(test, feature = "testing"))]
@@ -17,7 +17,7 @@ use crate::{
 use pkarr::Keypair;
 use std::{sync::Arc, time::Duration};
 
-/// Errors that can occur when converting a `DataDir` to an `AppContext`.
+/// Errors that can occur when converting a [`DataDir`] to an [`AppContext`].
 #[derive(Debug, thiserror::Error)]
 pub enum AppContextConversionError {
     /// Failed to ensure data directory exists and is writable.
@@ -43,7 +43,7 @@ pub enum AppContextConversionError {
 /// The application context shared between all components.
 /// Think of it as a simple Dependency Injection container.
 ///
-/// Create with a `DataDir` instance: `AppContext::try_from(data_dir)`
+/// Create with a [`DataDir`] instance: `AppContext::try_from(data_dir)`
 ///
 #[derive(Debug, Clone)]
 pub struct AppContext {

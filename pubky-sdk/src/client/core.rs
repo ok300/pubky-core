@@ -8,7 +8,7 @@ const DEFAULT_USER_AGENT: &str = concat!("pubky.org", "@", env!("CARGO_PKG_VERSI
 
 #[derive(Debug, Clone)]
 #[must_use]
-/// Configures a [`PubkyHttpClient`] before construction.
+/// Configures a [PubkyHttpClient] before construction.
 ///
 /// Customize timeouts, user-agent, pkarr relays, and (WASM) testnet behavior.
 /// Most code obtains this via [`PubkyHttpClient::builder()`], which simply returns
@@ -176,7 +176,7 @@ impl PubkyHttpClientBuilder {
         self
     }
 
-    /// Build a [`PubkyHttpClient`].
+    /// Build a [PubkyHttpClient].
     ///
     /// # Errors
     /// - [`crate::errors::BuildError::Pkarr`] if building the PKARR client fails.
@@ -243,7 +243,7 @@ impl PubkyHttpClientBuilder {
 /// URL handling.
 ///
 /// `PubkyHttpClient` is the low-level, stateless engine the higher-level actors
-/// (`PubkySession`, `PubkyStorage`, `Pkdns`, `PubkyAuthFlow`) are built on. It owns:
+/// ([`crate::PubkySession`], [`crate::PublicStorage`], [`crate::Pkdns`], [`crate::PubkyAuthFlow`]) are built on. It owns:
 /// - A pkarr DHT client (for resolving pkdns endpoints and publishing records).
 /// - One or more reqwest HTTP clients (platform-specific).
 ///
@@ -257,13 +257,13 @@ impl PubkyHttpClientBuilder {
 ///   For authenticated per-user flows use [`crate::PubkySession`].
 ///
 /// ### When to use
-/// - You want direct control over the `PubkyHttpClient` (power users, libs).
+/// - You want direct control over the [`PubkyHttpClient`] (power users, libs).
 /// - You’re wiring custom flows/tests and don’t need the high-level ergonomics.
 ///
 /// ### Construction
 /// Use [`PubkyHttpClient::builder()`] to tweak timeouts, relays, or
 /// user-agent; or pick sensible defaults via [`PubkyHttpClient::new()`]. A
-/// [`PubkyHttpClient::testnet()`] helper configures a local test network.
+/// [PubkyHttpClient::testnet()] helper configures a local test network.
 ///
 /// ### Platform notes
 /// - **Native (rust, not WASM target):**
@@ -304,7 +304,7 @@ impl PubkyHttpClientBuilder {
 /// ```
 ///
 /// Note: `request(..)` is available on native targets. On WASM, use the high-level
-/// actors (e.g., `Pubky`, `SessionStorage`, `PublicStorage`) or the JS bindings’
+/// actors (e.g., [`crate::Pubky`], [`crate::SessionStorage`], [`crate::PublicStorage`]) or the JS bindings’
 /// `client.fetch(..)` provided in `bindings/js`.
 ///
 /// Fetching a Pubky resource via its transport URL:
@@ -351,14 +351,14 @@ impl PubkyHttpClient {
         Self::builder().build()
     }
 
-    /// Returns a builder to edit settings before creating [`PubkyHttpClient`].
+    /// Returns a builder to edit settings before creating [PubkyHttpClient].
     /// Prefer this when you need to control PKARR/DHT inputs (relays, bootstrap);
     /// resolution itself remains automatic during requests.
     pub fn builder() -> PubkyHttpClientBuilder {
         PubkyHttpClientBuilder::default()
     }
 
-    /// Creates a [`PubkyHttpClient`] preconfigured to talk to a **locally running Pubky testnet**.
+    /// Creates a [PubkyHttpClient] preconfigured to talk to a **locally running Pubky testnet**.
     ///
     /// # What this configures
     /// On **non wasm** targets (`not(target_arch = "wasm32")`):

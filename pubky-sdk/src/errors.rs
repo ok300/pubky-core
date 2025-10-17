@@ -1,7 +1,7 @@
 //! Unified error types for the `pubky` crate.
 //!
 //! This module centralizes all failures that can occur while using the SDK and
-//! provides a single top-level [`enum@Error`] enum plus the convenient [`Result`] alias.
+//! provides a single top-level [enum@Error] enum plus the convenient [Result] alias.
 //! Errors from lower layers (`reqwest`, `pkarr`, `pubky_common`, URL parsing) are
 //! mapped into structured variants so callers can handle them precisely.
 
@@ -95,7 +95,7 @@ impl PkarrError {
 /// Errors originating from authentication flows (sessions, tokens, crypto).
 #[derive(Debug, Error)]
 pub enum AuthError {
-    /// `SessionInfo` (de)serialization or validation failed.
+    /// `pubky_common::session::SessionInfo` (de)serialization or validation failed.
     #[error("SessionInfo handling failed: {0}")]
     SessionInfo(#[from] pubky_common::session::Error),
 
@@ -149,7 +149,7 @@ pub enum RequestError {
     },
 }
 
-/// A specialized `Result` type for `pubky` operations.
+/// A specialized [`Result`] type for `pubky` operations.
 pub type Result<T> = std::result::Result<T, Error>;
 
 // Ergonomic "Staircase" From Implementations ---

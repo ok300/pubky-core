@@ -2,7 +2,7 @@
 //! Implements rate limiting with governor.
 //!
 //! Would love to use tower_governor but I can't type it properly due to
-//! https://github.com/benwis/tower-governor/issues/49.
+//! <https://github.com/benwis/tower-governor/issues/49>.
 //!
 //! So we implement our own rate limiter here.
 //!
@@ -32,7 +32,7 @@ use super::extract_ip::extract_ip;
 ///
 /// Supports rate limiting by request count and by upload/download speed.
 ///
-/// Requires a `PubkyHostLayer` to be applied first.
+/// Requires a [PubkyHostLayer] to be applied first.
 /// Used to extract the user pubkey as the key for the rate limiter.
 ///
 /// Returns 400 BAD REQUEST if the user pubkey aka pubky-host cannot be extracted.

@@ -32,7 +32,7 @@ impl Keypair {
 
     /// Returns the [PublicKey] of this keypair.
     ///
-    /// Use `.z32()` on the returned `PublicKey` to get the string form.
+    /// Use `.z32()` on the returned [`PublicKey`] to get the string form.
     ///
     /// @example
     /// const who = keypair.publicKey.z32();

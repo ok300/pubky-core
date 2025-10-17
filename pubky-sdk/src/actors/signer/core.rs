@@ -8,7 +8,7 @@ pub struct PubkySigner {
 }
 
 impl PubkySigner {
-    /// Construct a new `PubkySigner`.
+    /// Construct a new [`PubkySigner`].
     ///
     /// This is your entry point to keychain managing tooling.
     ///
@@ -21,7 +21,7 @@ impl PubkySigner {
     /// ```
     ///
     /// # Errors
-    /// - Returns [`crate::BuildError`] if the underlying [`PubkyHttpClient`] cannot be constructed.
+    /// - Returns [`crate::BuildError`] if the underlying [PubkyHttpClient] cannot be constructed.
     pub fn new(keypair: Keypair) -> std::result::Result<Self, BuildError> {
         Ok(Self {
             client: PubkyHttpClient::new()?,

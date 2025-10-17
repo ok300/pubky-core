@@ -14,7 +14,7 @@ enum PublishMode {
 }
 
 impl PubkySigner {
-    /// Create an account on a homeserver and return a ready-to-use `PubkySession`.
+    /// Create an account on a homeserver and return a ready-to-use [`PubkySession`].
     ///
     /// Side effects:
     /// - Publishes the `_pubky` pkarr record pointing to `homeserver` (force mode).
