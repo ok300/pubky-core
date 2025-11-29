@@ -296,6 +296,10 @@ Check more [examples](https://github.com/pubky/pubky-core/tree/main/examples) us
 
 Find a wrapper of this crate using `wasm_bindgen` in [npmjs.com](https://www.npmjs.com/package/@synonymdev/pubky). Or build on `pubky-sdk` codebase under `pubky-sdk/bindings/js`.
 
+## FFI bindings
+
+C-compatible FFI bindings are available for integrating with languages that support C FFI (Ruby, Python, Go, etc.). See the [FFI bindings documentation](./bindings/ffi/README.md) and [Ruby on Rails integration guide](./bindings/ffi/RAILS_INTEGRATION.md).
+
 ---
 
 **License:** MIT
