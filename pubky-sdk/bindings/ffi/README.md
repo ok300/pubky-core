@@ -4,13 +4,18 @@ C-compatible FFI bindings for the Pubky SDK, enabling integration with languages
 
 ## Architecture
 
-The FFI bindings use:
-- A **global Tokio multi-threaded runtime** for async SDK operations (keypair, signer, session, storage)
-- A **global blocking reqwest HTTP client** for HTTP requests (simpler, avoids async runtime conflicts)
+The FFI bindings use **lazy-initialized global singletons** for efficient operation:
 
-This hybrid approach provides the best of both worlds:
-- Full SDK functionality through the async runtime
-- Simple, reliable HTTP requests through the blocking client
+- **Global Tokio multi-threaded runtime** (`RUNTIME`) - all async SDK operations use `block_on()` to execute synchronously
+- **Global Pubky instance** (`GLOBAL_PUBKY`) - mainnet client with connection pooling
+- **Global Pubky testnet instance** (`GLOBAL_PUBKY_TESTNET`) - testnet client for development
+- **Global blocking reqwest HTTP client** (`GLOBAL_CLIENT`) - for direct HTTP requests
+
+This singleton pattern provides:
+- **Efficient connection pooling** - connections are reused across calls
+- **No runtime conflicts** - single runtime avoids nested async issues
+- **Thread-safe** - all globals are `Lazy<T>` with proper synchronization
+- **Simple API** - clients don't need to manage lifecycle
 
 ## Building
 
@@ -30,7 +35,8 @@ The FFI exposes the following main functions. Here's a summary of the C API:
 
 ```c
 // Initialization
-int pubky_init(void);
+int pubky_init(void);          // Initialize for mainnet
+int pubky_init_testnet(void);  // Initialize for testnet
 
 // Keypair operations
 void* pubky_keypair_random(void);

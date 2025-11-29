@@ -126,7 +126,7 @@ pub unsafe extern "C" fn pubky_string_free(ptr: *mut c_char) {
 pub unsafe extern "C" fn pubky_bytes_free(ptr: *mut u8, len: usize) {
     if !ptr.is_null() {
         // Safe: FfiBytesResult::success uses into_boxed_slice() which ensures capacity == len
-        let _ = Box::from_raw(std::slice::from_raw_parts_mut(ptr, len));
+        let _ = Box::from_raw(std::ptr::slice_from_raw_parts_mut(ptr, len));
     }
 }
 
@@ -152,7 +152,7 @@ pub unsafe extern "C" fn pubky_result_free(result: FfiResult) {
 pub unsafe extern "C" fn pubky_bytes_result_free(result: FfiBytesResult) {
     if !result.data.is_null() {
         // Safe: FfiBytesResult::success uses into_boxed_slice() which ensures capacity == len
-        let _ = Box::from_raw(std::slice::from_raw_parts_mut(result.data, result.len));
+        let _ = Box::from_raw(std::ptr::slice_from_raw_parts_mut(result.data, result.len));
     }
     if !result.error.is_null() {
         drop(CString::from_raw(result.error));

@@ -1,36 +1,56 @@
 //! FFI bindings for the Pubky facade.
+//!
+//! Uses lazy-initialized global Pubky instances for mainnet and testnet.
+//! All operations use `RUNTIME.block_on()` to execute async calls synchronously.
 
 use std::ptr;
 
 use crate::error::FfiResult;
 use crate::keypair::{FfiKeypair, FfiPublicKey};
-use crate::runtime::RUNTIME;
+use crate::runtime::{GLOBAL_PUBKY, GLOBAL_PUBKY_TESTNET, RUNTIME};
 use crate::signer::FfiSigner;
 use crate::storage::FfiPublicStorage;
 
 /// Opaque handle to a Pubky facade.
-pub struct FfiPubky(pub(crate) pubky::Pubky);
+/// This is a thin wrapper that indicates whether to use mainnet or testnet.
+pub struct FfiPubky {
+    /// Whether this uses the testnet global instance.
+    pub(crate) testnet: bool,
+}
+
+impl FfiPubky {
+    /// Get a reference to the appropriate global Pubky instance.
+    pub(crate) fn get(&self) -> &'static pubky::Pubky {
+        if self.testnet {
+            &GLOBAL_PUBKY_TESTNET
+        } else {
+            &GLOBAL_PUBKY
+        }
+    }
+}
 
 /// Create a new Pubky facade with mainnet defaults.
 /// Returns a pointer to the Pubky instance, or null on failure.
 /// The caller must free the instance with `pubky_free`.
+///
+/// This uses a global, lazy-initialized Pubky instance with connection pooling.
 #[no_mangle]
 pub extern "C" fn pubky_new() -> *mut FfiPubky {
-    match pubky::Pubky::new() {
-        Ok(pubky) => Box::into_raw(Box::new(FfiPubky(pubky))),
-        Err(_) => ptr::null_mut(),
-    }
+    // Force initialization of global mainnet instance
+    let _ = &*GLOBAL_PUBKY;
+    Box::into_raw(Box::new(FfiPubky { testnet: false }))
 }
 
 /// Create a Pubky facade preconfigured for a local testnet.
 /// Returns a pointer to the Pubky instance, or null on failure.
 /// The caller must free the instance with `pubky_free`.
+///
+/// This uses a global, lazy-initialized testnet Pubky instance with connection pooling.
 #[no_mangle]
 pub extern "C" fn pubky_testnet() -> *mut FfiPubky {
-    match pubky::Pubky::testnet() {
-        Ok(pubky) => Box::into_raw(Box::new(FfiPubky(pubky))),
-        Err(_) => ptr::null_mut(),
-    }
+    // Force initialization of global testnet instance
+    let _ = &*GLOBAL_PUBKY_TESTNET;
+    Box::into_raw(Box::new(FfiPubky { testnet: true }))
 }
 
 /// Free a Pubky instance.
@@ -59,9 +79,9 @@ pub unsafe extern "C" fn pubky_signer(
         return ptr::null_mut();
     }
 
-    let pubky = &(*pubky).0;
+    let pubky_handle = &*pubky;
     let keypair = (*keypair).0.clone();
-    let signer = pubky.signer(keypair);
+    let signer = pubky_handle.get().signer(keypair);
     Box::into_raw(Box::new(FfiSigner(signer)))
 }
 
@@ -77,8 +97,8 @@ pub unsafe extern "C" fn pubky_public_storage(pubky: *const FfiPubky) -> *mut Ff
         return ptr::null_mut();
     }
 
-    let pubky = &(*pubky).0;
-    Box::into_raw(Box::new(FfiPublicStorage(pubky.public_storage())))
+    let pubky_handle = &*pubky;
+    Box::into_raw(Box::new(FfiPublicStorage(pubky_handle.get().public_storage())))
 }
 
 /// Resolve the homeserver for a given public key.
@@ -95,10 +115,10 @@ pub unsafe extern "C" fn pubky_get_homeserver_of(
         return FfiResult::error("Null pointer".to_string(), -1);
     }
 
-    let pubky = &(*pubky).0;
+    let pubky_handle = &*pubky;
     let user_pk = &(*user_public_key).0;
 
-    match RUNTIME.block_on(pubky.get_homeserver_of(user_pk)) {
+    match RUNTIME.block_on(pubky_handle.get().get_homeserver_of(user_pk)) {
         Some(pk) => FfiResult::success(pk.to_string()),
         None => FfiResult::success_empty(),
     }

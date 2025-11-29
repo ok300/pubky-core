@@ -4,11 +4,18 @@ This guide explains how to integrate the Pubky SDK into a Ruby on Rails applicat
 
 ## Architecture
 
-The FFI bindings use:
-- A **global Tokio multi-threaded runtime** for async SDK operations (keypair, signer, session, storage)
-- A **global blocking reqwest HTTP client** for HTTP requests - simpler and avoids async runtime conflicts with Ruby
+The FFI bindings use **lazy-initialized global singletons** for efficient operation:
 
-This hybrid approach provides reliable HTTP requests that work well with Ruby's GIL (Global Interpreter Lock).
+- **Global Tokio multi-threaded runtime** - all async SDK operations use `block_on()` for synchronous execution
+- **Global Pubky instance** - a single mainnet client with automatic connection pooling
+- **Global Pubky testnet instance** - for development/testing environments
+- **Global blocking reqwest HTTP client** - for direct HTTP requests
+
+This singleton pattern:
+- Provides efficient connection pooling across all calls
+- Releases Ruby's GIL during blocking network operations
+- Avoids conflicts between Tokio runtime and Ruby threads
+- Handles thread-safety automatically
 
 ## Prerequisites
 
