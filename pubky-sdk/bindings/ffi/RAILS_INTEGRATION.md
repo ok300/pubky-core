@@ -41,7 +41,7 @@ bundle install
 
 ### 3. Create the Ruby FFI Wrapper
 
-Create `app/lib/pubky.rb` (or `lib/pubky.rb`):
+Create `app/lib/pubky_sdk_ffi.rb` (or `lib/pubky_sdk_ffi.rb`):
 
 ```ruby
 # frozen_string_literal: true
@@ -49,22 +49,17 @@ Create `app/lib/pubky.rb` (or `lib/pubky.rb`):
 require 'ffi'
 require 'json'
 
-module Pubky
+module PubkySdkFFI
   extend FFI::Library
 
-  # Load the shared library
-  lib_path = case RUBY_PLATFORM
-             when /darwin/
-               Rails.root.join('lib', 'libpubky_sdk_ffi.dylib')
-             when /linux/
-               Rails.root.join('lib', 'libpubky_sdk_ffi.so')
-             when /mingw|mswin/
-               Rails.root.join('lib', 'pubky_sdk_ffi.dll')
-             else
-               raise "Unsupported platform: #{RUBY_PLATFORM}"
+  # Load the shared library based on platform
+  LIB_NAME = case RbConfig::CONFIG['host_os']
+             when /darwin/  then 'libpubky_sdk_ffi.dylib'
+             when /linux/   then 'libpubky_sdk_ffi.so'
+             when /mswin|mingw/ then 'libpubky_sdk_ffi.dll'
              end
 
-  ffi_lib lib_path
+  ffi_lib Rails.root.join('lib', 'native', LIB_NAME).to_s
 
   # Result structures
   class FfiResult < FFI::Struct
@@ -200,12 +195,12 @@ module Pubky
     end
 
     def self.release(ptr)
-      proc { Pubky.pubky_keypair_free(ptr) }
+      proc { PubkySdkFFI.pubky_keypair_free(ptr) }
     end
 
     # Generate a random keypair
     def self.random
-      new(Pubky.pubky_keypair_random)
+      new(PubkySdkFFI.pubky_keypair_random)
     end
 
     # Create from a 32-byte secret key
@@ -214,29 +209,29 @@ module Pubky
 
       secret_ptr = FFI::MemoryPointer.new(:uint8, 32)
       secret_ptr.put_bytes(0, secret_key)
-      new(Pubky.pubky_keypair_from_secret_key(secret_ptr, 32))
+      new(PubkySdkFFI.pubky_keypair_from_secret_key(secret_ptr, 32))
     end
 
     # Create from a recovery file
     def self.from_recovery_file(data, passphrase)
       data_ptr = FFI::MemoryPointer.new(:uint8, data.bytesize)
       data_ptr.put_bytes(0, data)
-      new(Pubky.pubky_keypair_from_recovery_file(data_ptr, data.bytesize, passphrase))
+      new(PubkySdkFFI.pubky_keypair_from_recovery_file(data_ptr, data.bytesize, passphrase))
     end
 
     # Get the secret key (32 bytes)
     def secret_key
-      Pubky.handle_bytes_result(Pubky.pubky_keypair_secret_key(@ptr))
+      PubkySdkFFI.handle_bytes_result(PubkySdkFFI.pubky_keypair_secret_key(@ptr))
     end
 
     # Get the public key
     def public_key
-      PublicKey.new(Pubky.pubky_keypair_public_key(@ptr))
+      PublicKey.new(PubkySdkFFI.pubky_keypair_public_key(@ptr))
     end
 
     # Create an encrypted recovery file
     def create_recovery_file(passphrase)
-      Pubky.handle_bytes_result(Pubky.pubky_keypair_create_recovery_file(@ptr, passphrase))
+      PubkySdkFFI.handle_bytes_result(PubkySdkFFI.pubky_keypair_create_recovery_file(@ptr, passphrase))
     end
   end
 
@@ -250,22 +245,22 @@ module Pubky
     end
 
     def self.release(ptr)
-      proc { Pubky.pubky_public_key_free(ptr) }
+      proc { PubkySdkFFI.pubky_public_key_free(ptr) }
     end
 
     # Create from z-base32 string
     def self.from_z32(z32)
-      new(Pubky.pubky_public_key_from_z32(z32))
+      new(PubkySdkFFI.pubky_public_key_from_z32(z32))
     end
 
     # Get z-base32 string representation
     def z32
-      Pubky.handle_result(Pubky.pubky_public_key_z32(@ptr))
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_public_key_z32(@ptr))
     end
 
     # Get raw bytes
     def bytes
-      Pubky.handle_bytes_result(Pubky.pubky_public_key_bytes(@ptr))
+      PubkySdkFFI.handle_bytes_result(PubkySdkFFI.pubky_public_key_bytes(@ptr))
     end
 
     def to_s
@@ -277,29 +272,29 @@ module Pubky
     attr_reader :ptr
 
     def initialize(testnet: false)
-      @ptr = testnet ? Pubky.pubky_testnet : Pubky.pubky_new
+      @ptr = testnet ? PubkySdkFFI.pubky_testnet : PubkySdkFFI.pubky_new
       raise Error.new('Failed to create Pubky client') if @ptr.null?
       ObjectSpace.define_finalizer(self, self.class.release(@ptr))
     end
 
     def self.release(ptr)
-      proc { Pubky.pubky_free(ptr) }
+      proc { PubkySdkFFI.pubky_free(ptr) }
     end
 
     # Create a signer from a keypair
     def signer(keypair)
-      Signer.new(Pubky.pubky_signer(@ptr, keypair.ptr), keypair)
+      Signer.new(PubkySdkFFI.pubky_signer(@ptr, keypair.ptr), keypair)
     end
 
     # Get public storage
     def public_storage
-      PublicStorage.new(Pubky.pubky_public_storage(@ptr))
+      PublicStorage.new(PubkySdkFFI.pubky_public_storage(@ptr))
     end
 
     # Resolve homeserver for a public key
     def get_homeserver_of(public_key)
-      result = Pubky.pubky_get_homeserver_of(@ptr, public_key.ptr)
-      z32 = Pubky.handle_result(result)
+      result = PubkySdkFFI.pubky_get_homeserver_of(@ptr, public_key.ptr)
+      z32 = PubkySdkFFI.handle_result(result)
       z32 ? PublicKey.from_z32(z32) : nil
     end
   end
@@ -315,29 +310,29 @@ module Pubky
     end
 
     def self.release(ptr)
-      proc { Pubky.pubky_signer_free(ptr) }
+      proc { PubkySdkFFI.pubky_signer_free(ptr) }
     end
 
     # Get public key
     def public_key
-      PublicKey.new(Pubky.pubky_signer_public_key(@ptr))
+      PublicKey.new(PubkySdkFFI.pubky_signer_public_key(@ptr))
     end
 
     # Sign up at a homeserver
     def signup(homeserver, token = nil)
-      session_ptr = Pubky.pubky_signer_signup(@ptr, homeserver.ptr, token)
+      session_ptr = PubkySdkFFI.pubky_signer_signup(@ptr, homeserver.ptr, token)
       Session.new(session_ptr)
     end
 
     # Sign in (for returning users)
     def signin
-      session_ptr = Pubky.pubky_signer_signin(@ptr)
+      session_ptr = PubkySdkFFI.pubky_signer_signin(@ptr)
       Session.new(session_ptr)
     end
 
     # Sign in blocking (waits for PKDNS publish)
     def signin_blocking
-      session_ptr = Pubky.pubky_signer_signin_blocking(@ptr)
+      session_ptr = PubkySdkFFI.pubky_signer_signin_blocking(@ptr)
       Session.new(session_ptr)
     end
   end
@@ -353,35 +348,35 @@ module Pubky
     end
 
     def self.release(ptr)
-      proc { Pubky.pubky_session_free(ptr) unless ptr.null? }
+      proc { PubkySdkFFI.pubky_session_free(ptr) unless ptr.null? }
     end
 
     # Get public key
     def public_key
-      PublicKey.new(Pubky.pubky_session_public_key(@ptr))
+      PublicKey.new(PubkySdkFFI.pubky_session_public_key(@ptr))
     end
 
     # Get capabilities
     def capabilities
-      Pubky.handle_result(Pubky.pubky_session_capabilities(@ptr))
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_session_capabilities(@ptr))
     end
 
     # Get session storage
     def storage
-      SessionStorage.new(Pubky.pubky_session_storage(@ptr))
+      SessionStorage.new(PubkySdkFFI.pubky_session_storage(@ptr))
     end
 
     # Sign out (invalidates the session)
     def signout
-      result = Pubky.pubky_session_signout(@ptr)
+      result = PubkySdkFFI.pubky_session_signout(@ptr)
       @freed = true
-      Pubky.handle_result(result)
+      PubkySdkFFI.handle_result(result)
     end
 
     # Revalidate session
     def revalidate
-      result = Pubky.pubky_session_revalidate(@ptr)
-      Pubky.handle_result(result)
+      result = PubkySdkFFI.pubky_session_revalidate(@ptr)
+      PubkySdkFFI.handle_result(result)
     end
   end
 
@@ -395,57 +390,57 @@ module Pubky
     end
 
     def self.release(ptr)
-      proc { Pubky.pubky_session_storage_free(ptr) }
+      proc { PubkySdkFFI.pubky_session_storage_free(ptr) }
     end
 
     # Get text from path
     def get(path)
-      Pubky.handle_result(Pubky.pubky_session_storage_get_text(@ptr, path))
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_session_storage_get_text(@ptr, path))
     end
 
     # Get bytes from path
     def get_bytes(path)
-      Pubky.handle_bytes_result(Pubky.pubky_session_storage_get_bytes(@ptr, path))
+      PubkySdkFFI.handle_bytes_result(PubkySdkFFI.pubky_session_storage_get_bytes(@ptr, path))
     end
 
     # Get JSON from path
     def get_json(path)
-      json_str = Pubky.handle_result(Pubky.pubky_session_storage_get_json(@ptr, path))
+      json_str = PubkySdkFFI.handle_result(PubkySdkFFI.pubky_session_storage_get_json(@ptr, path))
       JSON.parse(json_str)
     end
 
     # Put text at path
     def put(path, body)
-      Pubky.handle_result(Pubky.pubky_session_storage_put_text(@ptr, path, body))
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_session_storage_put_text(@ptr, path, body))
     end
 
     # Put bytes at path
     def put_bytes(path, body)
       body_ptr = FFI::MemoryPointer.new(:uint8, body.bytesize)
       body_ptr.put_bytes(0, body)
-      Pubky.handle_result(Pubky.pubky_session_storage_put_bytes(@ptr, path, body_ptr, body.bytesize))
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_session_storage_put_bytes(@ptr, path, body_ptr, body.bytesize))
     end
 
     # Put JSON at path
     def put_json(path, value)
       json_str = value.is_a?(String) ? value : JSON.generate(value)
-      Pubky.handle_result(Pubky.pubky_session_storage_put_json(@ptr, path, json_str))
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_session_storage_put_json(@ptr, path, json_str))
     end
 
     # Delete path
     def delete(path)
-      Pubky.handle_result(Pubky.pubky_session_storage_delete(@ptr, path))
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_session_storage_delete(@ptr, path))
     end
 
     # Check if path exists
     def exists?(path)
-      result = Pubky.handle_result(Pubky.pubky_session_storage_exists(@ptr, path))
+      result = PubkySdkFFI.handle_result(PubkySdkFFI.pubky_session_storage_exists(@ptr, path))
       result == 'true'
     end
 
     # List directory contents
     def list(path, limit: 100)
-      json_str = Pubky.handle_result(Pubky.pubky_session_storage_list(@ptr, path, limit))
+      json_str = PubkySdkFFI.handle_result(PubkySdkFFI.pubky_session_storage_list(@ptr, path, limit))
       JSON.parse(json_str)
     end
   end
@@ -460,34 +455,34 @@ module Pubky
     end
 
     def self.release(ptr)
-      proc { Pubky.pubky_public_storage_free(ptr) }
+      proc { PubkySdkFFI.pubky_public_storage_free(ptr) }
     end
 
     # Get text from address
     def get(address)
-      Pubky.handle_result(Pubky.pubky_public_storage_get_text(@ptr, address))
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_public_storage_get_text(@ptr, address))
     end
 
     # Get bytes from address
     def get_bytes(address)
-      Pubky.handle_bytes_result(Pubky.pubky_public_storage_get_bytes(@ptr, address))
+      PubkySdkFFI.handle_bytes_result(PubkySdkFFI.pubky_public_storage_get_bytes(@ptr, address))
     end
 
     # Get JSON from address
     def get_json(address)
-      json_str = Pubky.handle_result(Pubky.pubky_public_storage_get_json(@ptr, address))
+      json_str = PubkySdkFFI.handle_result(PubkySdkFFI.pubky_public_storage_get_json(@ptr, address))
       JSON.parse(json_str)
     end
 
     # Check if address exists
     def exists?(address)
-      result = Pubky.handle_result(Pubky.pubky_public_storage_exists(@ptr, address))
+      result = PubkySdkFFI.handle_result(PubkySdkFFI.pubky_public_storage_exists(@ptr, address))
       result == 'true'
     end
 
     # List directory contents
     def list(address, limit: 100)
-      json_str = Pubky.handle_result(Pubky.pubky_public_storage_list(@ptr, address, limit))
+      json_str = PubkySdkFFI.handle_result(PubkySdkFFI.pubky_public_storage_list(@ptr, address, limit))
       JSON.parse(json_str)
     end
   end
@@ -500,7 +495,7 @@ end
 
 ```ruby
 # Generate a random keypair
-keypair = Pubky::Keypair.random
+keypair = PubkySdkFFI::Keypair.random
 public_key = keypair.public_key
 
 puts "Public Key: #{public_key.z32}"
@@ -514,21 +509,21 @@ secret_key = keypair.secret_key  # 32 bytes
 ```ruby
 # Restore keypair from secret key
 secret_key = "\x00" * 32  # Your 32-byte secret key
-keypair = Pubky::Keypair.from_secret_key(secret_key)
+keypair = PubkySdkFFI::Keypair.from_secret_key(secret_key)
 ```
 
 ### 3. Sign Up on a Homeserver
 
 ```ruby
 # Create a Pubky client
-pubky = Pubky::Client.new
+pubky = PubkySdkFFI::Client.new
 
 # Generate keypair and create signer
-keypair = Pubky::Keypair.random
+keypair = PubkySdkFFI::Keypair.random
 signer = pubky.signer(keypair)
 
 # Sign up on a homeserver (identified by its public key)
-homeserver = Pubky::PublicKey.from_z32("o4dksf...uyy")
+homeserver = PubkySdkFFI::PublicKey.from_z32("o4dksf...uyy")
 session = signer.signup(homeserver)
 
 puts "Signed up as: #{session.public_key.z32}"
@@ -570,7 +565,7 @@ storage.delete("/pub/my-cool-app/hello.txt")
 ### 5. Public Read (Unauthenticated)
 
 ```ruby
-pubky = Pubky::Client.new
+pubky = PubkySdkFFI::Client.new
 public_storage = pubky.public_storage
 
 # Read another user's public file
@@ -588,10 +583,10 @@ entries.each { |url| puts url }
 ### 6. Sign In (Returning User)
 
 ```ruby
-pubky = Pubky::Client.new
+pubky = PubkySdkFFI::Client.new
 
 # Load keypair from saved secret key
-keypair = Pubky::Keypair.from_secret_key(saved_secret_key)
+keypair = PubkySdkFFI::Keypair.from_secret_key(saved_secret_key)
 signer = pubky.signer(keypair)
 
 # Sign in
@@ -606,7 +601,7 @@ storage = session.storage
 
 ```ruby
 # Create an encrypted recovery file
-keypair = Pubky::Keypair.random
+keypair = PubkySdkFFI::Keypair.random
 recovery_data = keypair.create_recovery_file("my-secure-passphrase")
 
 # Save to file
@@ -614,16 +609,16 @@ File.binwrite("alice.pkarr", recovery_data)
 
 # Later: restore keypair from recovery file
 recovery_data = File.binread("alice.pkarr")
-keypair = Pubky::Keypair.from_recovery_file(recovery_data, "my-secure-passphrase")
+keypair = PubkySdkFFI::Keypair.from_recovery_file(recovery_data, "my-secure-passphrase")
 ```
 
 ### 8. Resolve Homeserver
 
 ```ruby
-pubky = Pubky::Client.new
+pubky = PubkySdkFFI::Client.new
 
 # Get another user's homeserver
-user = Pubky::PublicKey.from_z32("operrr8wsbpr3ue9d4qj41ge1kcc6r7fdiy6o3ugjrrhi4y77rdo")
+user = PubkySdkFFI::PublicKey.from_z32("operrr8wsbpr3ue9d4qj41ge1kcc6r7fdiy6o3ugjrrhi4y77rdo")
 homeserver = pubky.get_homeserver_of(user)
 
 if homeserver
@@ -641,11 +636,11 @@ end
 # app/services/pubky_service.rb
 class PubkyService
   def initialize(testnet: Rails.env.development?)
-    @client = Pubky::Client.new(testnet: testnet)
+    @client = PubkySdkFFI::Client.new(testnet: testnet)
   end
 
   def create_user
-    keypair = Pubky::Keypair.random
+    keypair = PubkySdkFFI::Keypair.random
     {
       public_key: keypair.public_key.z32,
       secret_key: keypair.secret_key
@@ -653,7 +648,7 @@ class PubkyService
   end
 
   def sign_in(secret_key)
-    keypair = Pubky::Keypair.from_secret_key(secret_key)
+    keypair = PubkySdkFFI::Keypair.from_secret_key(secret_key)
     signer = @client.signer(keypair)
     signer.signin
   end
@@ -661,7 +656,7 @@ class PubkyService
   def get_public_file(user_id, path)
     address = "pubky#{user_id}#{path}"
     @client.public_storage.get(address)
-  rescue Pubky::Error => e
+  rescue PubkySdkFFI::Error => e
     Rails.logger.error("Pubky error: #{e.message}")
     nil
   end
@@ -719,7 +714,7 @@ end
 
 The Pubky FFI bindings use a global Tokio runtime for async operations. The runtime is initialized automatically on first use. For thread-safety in Rails:
 
-- Each `Pubky::Client` instance can be safely shared across threads
+- Each `PubkySdkFFI::Client` instance can be safely shared across threads
 - `Session` and `Storage` objects should be created per-request
 - Use connection pools or create new clients as needed
 
@@ -728,7 +723,7 @@ The Pubky FFI bindings use a global Tokio runtime for async operations. The runt
 ```ruby
 begin
   storage.put("/pub/app/file.txt", "content")
-rescue Pubky::Error => e
+rescue PubkySdkFFI::Error => e
   case e.code
   when 1
     # Request error (network/server)
@@ -750,7 +745,7 @@ For testing, use the testnet mode:
 # spec/support/pubky_helper.rb
 RSpec.configure do |config|
   config.before(:each, :pubky) do
-    @pubky = Pubky::Client.new(testnet: true)
+    @pubky = PubkySdkFFI::Client.new(testnet: true)
   end
 end
 ```
@@ -759,7 +754,7 @@ end
 # spec/services/pubky_service_spec.rb
 RSpec.describe PubkyService, :pubky do
   it "creates and reads files" do
-    keypair = Pubky::Keypair.random
+    keypair = PubkySdkFFI::Keypair.random
     signer = @pubky.signer(keypair)
 
     # Note: This requires a running testnet
