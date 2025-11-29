@@ -1,15 +1,28 @@
 //! FFI bindings for the PubkyHttpClient.
 
+use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::ptr;
 
 use pubky::{Method, PubkyHttpClient};
 
-use crate::error::{FfiBytesResult, FfiResult, cstr_to_string};
+use crate::error::{FfiBytesResult, FfiResult};
 use crate::runtime::RUNTIME;
 
 /// Opaque handle to a PubkyHttpClient.
 pub struct FfiHttpClient(pub(crate) PubkyHttpClient);
+
+/// Safely convert a C string pointer to a Rust String.
+/// Returns None if the pointer is null or if the string is invalid UTF-8.
+unsafe fn safe_cstr_to_string(ptr: *const c_char) -> Option<String> {
+    if ptr.is_null() {
+        return None;
+    }
+    match CStr::from_ptr(ptr).to_str() {
+        Ok(s) => Some(s.to_string()),
+        Err(_) => None,
+    }
+}
 
 /// Create a new PubkyHttpClient with mainnet defaults.
 /// Returns a pointer to the client, or null on failure.
@@ -61,7 +74,7 @@ pub unsafe extern "C" fn pubky_http_client_free(client: *mut FfiHttpClient) {
 /// * `headers` - Optional headers as JSON object string (can be null), e.g. `{"Content-Type": "application/json"}`
 ///
 /// # Safety
-/// The client and method pointers must be valid.
+/// The client pointer must be valid. Method and url must be valid C strings or null.
 #[no_mangle]
 pub unsafe extern "C" fn pubky_http_client_request(
     client: *const FfiHttpClient,
@@ -74,14 +87,14 @@ pub unsafe extern "C" fn pubky_http_client_request(
         return FfiResult::error("Null client pointer".to_string(), -1);
     }
 
-    let method_str = match cstr_to_string(method) {
+    let method_str = match safe_cstr_to_string(method) {
         Some(s) => s,
-        None => return FfiResult::error("Invalid method".to_string(), -1),
+        None => return FfiResult::error("Invalid or null method".to_string(), -1),
     };
 
-    let url_str = match cstr_to_string(url) {
+    let url_str = match safe_cstr_to_string(url) {
         Some(s) => s,
-        None => return FfiResult::error("Invalid URL".to_string(), -1),
+        None => return FfiResult::error("Invalid or null URL".to_string(), -1),
     };
 
     let http_method = match method_str.to_uppercase().as_str() {
@@ -95,13 +108,13 @@ pub unsafe extern "C" fn pubky_http_client_request(
         _ => return FfiResult::error(format!("Unsupported HTTP method: {}", method_str), -1),
     };
 
-    let body_opt = cstr_to_string(body);
-    let headers_opt = cstr_to_string(headers);
+    let body_opt = safe_cstr_to_string(body);
+    let headers_opt = safe_cstr_to_string(headers);
 
-    let client = &(*client).0;
+    let client_ref = &(*client).0;
 
     match RUNTIME.block_on(async {
-        let mut rb = client.request(http_method, &url_str);
+        let mut rb = client_ref.request(http_method, &url_str);
 
         // Apply headers if provided
         if let Some(headers_json) = headers_opt {
@@ -139,7 +152,7 @@ pub unsafe extern "C" fn pubky_http_client_request(
 /// * `headers` - Optional headers as JSON object string (can be null)
 ///
 /// # Safety
-/// The client, method, and url pointers must be valid.
+/// The client pointer must be valid. Method and url must be valid C strings.
 #[no_mangle]
 pub unsafe extern "C" fn pubky_http_client_request_bytes(
     client: *const FfiHttpClient,
@@ -153,14 +166,14 @@ pub unsafe extern "C" fn pubky_http_client_request_bytes(
         return FfiBytesResult::error("Null client pointer".to_string(), -1);
     }
 
-    let method_str = match cstr_to_string(method) {
+    let method_str = match safe_cstr_to_string(method) {
         Some(s) => s,
-        None => return FfiBytesResult::error("Invalid method".to_string(), -1),
+        None => return FfiBytesResult::error("Invalid or null method".to_string(), -1),
     };
 
-    let url_str = match cstr_to_string(url) {
+    let url_str = match safe_cstr_to_string(url) {
         Some(s) => s,
-        None => return FfiBytesResult::error("Invalid URL".to_string(), -1),
+        None => return FfiBytesResult::error("Invalid or null URL".to_string(), -1),
     };
 
     let http_method = match method_str.to_uppercase().as_str() {
@@ -180,12 +193,12 @@ pub unsafe extern "C" fn pubky_http_client_request_bytes(
         Some(std::slice::from_raw_parts(body, body_len).to_vec())
     };
 
-    let headers_opt = cstr_to_string(headers);
+    let headers_opt = safe_cstr_to_string(headers);
 
-    let client = &(*client).0;
+    let client_ref = &(*client).0;
 
     match RUNTIME.block_on(async {
-        let mut rb = client.request(http_method, &url_str);
+        let mut rb = client_ref.request(http_method, &url_str);
 
         // Apply headers if provided
         if let Some(headers_json) = headers_opt {
@@ -283,7 +296,7 @@ pub unsafe extern "C" fn pubky_http_response_free(response: FfiHttpResponse) {
 /// * `headers` - Optional headers as JSON object string (can be null)
 ///
 /// # Safety
-/// The client, method, and url pointers must be valid.
+/// The client pointer must be valid. Method and url must be valid C strings.
 #[no_mangle]
 pub unsafe extern "C" fn pubky_http_client_request_full(
     client: *const FfiHttpClient,
@@ -296,14 +309,14 @@ pub unsafe extern "C" fn pubky_http_client_request_full(
         return FfiHttpResponse::error("Null client pointer".to_string(), -1);
     }
 
-    let method_str = match cstr_to_string(method) {
+    let method_str = match safe_cstr_to_string(method) {
         Some(s) => s,
-        None => return FfiHttpResponse::error("Invalid method".to_string(), -1),
+        None => return FfiHttpResponse::error("Invalid or null method".to_string(), -1),
     };
 
-    let url_str = match cstr_to_string(url) {
+    let url_str = match safe_cstr_to_string(url) {
         Some(s) => s,
-        None => return FfiHttpResponse::error("Invalid URL".to_string(), -1),
+        None => return FfiHttpResponse::error("Invalid or null URL".to_string(), -1),
     };
 
     let http_method = match method_str.to_uppercase().as_str() {
@@ -317,13 +330,13 @@ pub unsafe extern "C" fn pubky_http_client_request_full(
         _ => return FfiHttpResponse::error(format!("Unsupported HTTP method: {}", method_str), -1),
     };
 
-    let body_opt = cstr_to_string(body);
-    let headers_opt = cstr_to_string(headers);
+    let body_opt = safe_cstr_to_string(body);
+    let headers_opt = safe_cstr_to_string(headers);
 
-    let client = &(*client).0;
+    let client_ref = &(*client).0;
 
     match RUNTIME.block_on(async {
-        let mut rb = client.request(http_method, &url_str);
+        let mut rb = client_ref.request(http_method, &url_str);
 
         // Apply headers if provided
         if let Some(headers_json) = headers_opt {

@@ -109,8 +109,9 @@ module PubkySdkFFI
   attach_function :pubky_http_client_new, [], :pointer
   attach_function :pubky_http_client_testnet, [], :pointer
   attach_function :pubky_http_client_free, [:pointer], :void
-  attach_function :pubky_http_client_request, [:pointer, :string, :string, :string, :string], FfiResult.by_value
-  attach_function :pubky_http_client_request_bytes, [:pointer, :string, :string, :pointer, :size_t, :string], FfiBytesResult.by_value
+  # Note: body and headers use :pointer instead of :string to allow nil/NULL
+  attach_function :pubky_http_client_request, [:pointer, :string, :string, :pointer, :pointer], FfiResult.by_value
+  attach_function :pubky_http_client_request_bytes, [:pointer, :string, :string, :pointer, :size_t, :pointer], FfiBytesResult.by_value
 
   # Signer operations
   attach_function :pubky_signer_public_key, [:pointer], :pointer
@@ -320,6 +321,14 @@ module PubkySdkFFI
       proc { PubkySdkFFI.pubky_http_client_free(ptr) }
     end
 
+    # Convert a string to a C string pointer, or return nil for NULL
+    def to_cstr(str)
+      return nil if str.nil?
+      ptr = FFI::MemoryPointer.new(:char, str.bytesize + 1)
+      ptr.put_string(0, str)
+      ptr
+    end
+
     # Make an HTTP request and return the response body as text
     # @param method [String] HTTP method (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS)
     # @param url [String] URL to request (can be pubky://, https://, or _pubky.*)
@@ -328,7 +337,9 @@ module PubkySdkFFI
     # @return [String] Response body as text
     def request(method, url, body: nil, headers: nil)
       headers_json = headers ? JSON.generate(headers) : nil
-      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_http_client_request(@ptr, method.to_s.upcase, url, body, headers_json))
+      body_ptr = to_cstr(body)
+      headers_ptr = to_cstr(headers_json)
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_http_client_request(@ptr, method.to_s.upcase, url, body_ptr, headers_ptr))
     end
 
     # Make an HTTP request and return the response body as bytes
@@ -339,12 +350,13 @@ module PubkySdkFFI
     # @return [String] Response body as bytes
     def request_bytes(method, url, body: nil, headers: nil)
       headers_json = headers ? JSON.generate(headers) : nil
+      headers_ptr = to_cstr(headers_json)
       if body
         body_ptr = FFI::MemoryPointer.new(:uint8, body.bytesize)
         body_ptr.put_bytes(0, body)
-        PubkySdkFFI.handle_bytes_result(PubkySdkFFI.pubky_http_client_request_bytes(@ptr, method.to_s.upcase, url, body_ptr, body.bytesize, headers_json))
+        PubkySdkFFI.handle_bytes_result(PubkySdkFFI.pubky_http_client_request_bytes(@ptr, method.to_s.upcase, url, body_ptr, body.bytesize, headers_ptr))
       else
-        PubkySdkFFI.handle_bytes_result(PubkySdkFFI.pubky_http_client_request_bytes(@ptr, method.to_s.upcase, url, nil, 0, headers_json))
+        PubkySdkFFI.handle_bytes_result(PubkySdkFFI.pubky_http_client_request_bytes(@ptr, method.to_s.upcase, url, nil, 0, headers_ptr))
       end
     end
 
@@ -741,20 +753,28 @@ testnet_client = PubkySdkFFI::HttpClient.new(testnet: true)
 
 #### Direct FFI Usage (Advanced)
 
-For advanced use cases, you can call the FFI functions directly:
+For advanced use cases, you can call the FFI functions directly. Note that optional string parameters (body, headers) must be passed as `FFI::MemoryPointer` or `nil`:
 
 ```ruby
+# Helper to convert string to C string pointer
+def to_cstr(str)
+  return nil if str.nil?
+  ptr = FFI::MemoryPointer.new(:char, str.bytesize + 1)
+  ptr.put_string(0, str)
+  ptr
+end
+
 # Create HTTP client via FFI
 client_ptr = PubkySdkFFI.pubky_http_client_new
 
 # Make a request using pubky_http_client_request
-# Arguments: client_ptr, method, url, body (or nil), headers_json (or nil)
+# Arguments: client_ptr, method, url, body_ptr (or nil), headers_ptr (or nil)
 result = PubkySdkFFI.pubky_http_client_request(
   client_ptr,
   "GET",
   "https://_pubky.#{user_id}/pub/pubky.app/profile.json",
-  nil,  # no body
-  nil   # no custom headers
+  nil,  # no body - pass nil for NULL pointer
+  nil   # no custom headers - pass nil for NULL pointer
 )
 
 if result[:code] == 0
@@ -765,14 +785,15 @@ else
   PubkySdkFFI.pubky_string_free(result[:error])
 end
 
-# POST with body and headers
-headers_json = '{"Content-Type": "application/json", "Authorization": "Bearer token123"}'
+# POST with body and headers - convert strings to C string pointers
+body_ptr = to_cstr('{"key": "value"}')
+headers_ptr = to_cstr('{"Content-Type": "application/json", "Authorization": "Bearer token123"}')
 result = PubkySdkFFI.pubky_http_client_request(
   client_ptr,
   "POST",
   "https://api.example.com/data",
-  '{"key": "value"}',
-  headers_json
+  body_ptr,
+  headers_ptr
 )
 
 # Clean up
