@@ -139,8 +139,13 @@ pub unsafe extern "C" fn pubky_session_storage_put_text(
 /// Put bytes at an absolute path (session storage).
 /// Returns a result with success/error status.
 ///
+/// # Arguments
+/// * `body` - Pointer to byte data. Can be null only if `body_len` is 0 (empty content).
+/// * `body_len` - Length of the byte data.
+///
 /// # Safety
-/// The storage, path, and body pointers must be valid.
+/// The storage and path pointers must be valid.
+/// If body_len > 0, body must point to valid memory of at least body_len bytes.
 #[no_mangle]
 pub unsafe extern "C" fn pubky_session_storage_put_bytes(
     storage: *const FfiSessionStorage,
@@ -157,11 +162,12 @@ pub unsafe extern "C" fn pubky_session_storage_put_bytes(
         None => return FfiResult::error("Invalid path".to_string(), -1),
     };
 
+    // Allow null body only when body_len is 0 (writing empty content)
     if body.is_null() && body_len > 0 {
-        return FfiResult::error("Invalid body".to_string(), -1);
+        return FfiResult::error("Null body pointer with non-zero length".to_string(), -1);
     }
 
-    let body_bytes = if body.is_null() {
+    let body_bytes = if body.is_null() || body_len == 0 {
         Vec::new()
     } else {
         std::slice::from_raw_parts(body, body_len).to_vec()

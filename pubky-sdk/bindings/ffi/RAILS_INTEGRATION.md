@@ -12,8 +12,9 @@ This guide explains how to integrate the Pubky SDK into a Ruby on Rails applicat
 
 ### 1. Build the Pubky FFI Library
 
+From the repository root directory:
+
 ```bash
-cd pubky-core
 cargo build --release --package pubky-ffi
 ```
 
