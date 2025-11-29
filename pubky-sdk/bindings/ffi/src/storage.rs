@@ -2,7 +2,7 @@
 
 use std::os::raw::c_char;
 
-use crate::error::{FfiBytesResult, FfiResult, cstr_to_string};
+use crate::error::{cstr_to_string, FfiBytesResult, FfiResult};
 use crate::runtime::RUNTIME;
 
 /// Opaque handle to SessionStorage (authenticated, as-me storage).

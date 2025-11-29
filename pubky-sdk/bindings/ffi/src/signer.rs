@@ -3,7 +3,7 @@
 use std::os::raw::c_char;
 use std::ptr;
 
-use crate::error::{FfiResult, cstr_to_string};
+use crate::error::{cstr_to_string, FfiResult};
 use crate::keypair::FfiPublicKey;
 use crate::runtime::RUNTIME;
 use crate::session::FfiSession;

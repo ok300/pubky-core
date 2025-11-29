@@ -39,7 +39,8 @@ impl FfiResult {
 
     /// Create an error result.
     pub fn error(message: String, code: i32) -> Self {
-        let c_string = CString::new(message).unwrap_or_else(|_| CString::new("Unknown error").unwrap());
+        let c_string =
+            CString::new(message).unwrap_or_else(|_| CString::new("Unknown error").unwrap());
         Self {
             data: ptr::null_mut(),
             error: c_string.into_raw(),
@@ -93,7 +94,8 @@ impl FfiBytesResult {
 
     /// Create an error result.
     pub fn error(message: String, code: i32) -> Self {
-        let c_string = CString::new(message).unwrap_or_else(|_| CString::new("Unknown error").unwrap());
+        let c_string =
+            CString::new(message).unwrap_or_else(|_| CString::new("Unknown error").unwrap());
         Self {
             data: ptr::null_mut(),
             len: 0,

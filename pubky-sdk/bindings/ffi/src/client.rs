@@ -58,7 +58,7 @@ pub unsafe extern "C" fn pubky_http_client_free(client: *mut FfiHttpClient) {
 }
 
 /// Perform an HTTP request using the PubkyHttpClient.
-/// 
+///
 /// This method can make requests to:
 /// 1. Standard HTTPS URLs
 /// 2. HTTPS URLs with a pkarr PublicKey as top-level domain
@@ -118,7 +118,9 @@ pub unsafe extern "C" fn pubky_http_client_request(
 
         // Apply headers if provided
         if let Some(headers_json) = headers_opt {
-            if let Ok(headers_map) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&headers_json) {
+            if let Ok(headers_map) =
+                serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&headers_json)
+            {
                 for (name, value) in headers_map {
                     if let Some(value_str) = value.as_str() {
                         rb = rb.header(name.as_str(), value_str);
@@ -202,7 +204,9 @@ pub unsafe extern "C" fn pubky_http_client_request_bytes(
 
         // Apply headers if provided
         if let Some(headers_json) = headers_opt {
-            if let Ok(headers_map) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&headers_json) {
+            if let Ok(headers_map) =
+                serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&headers_json)
+            {
                 for (name, value) in headers_map {
                     if let Some(value_str) = value.as_str() {
                         rb = rb.header(name.as_str(), value_str);
@@ -243,8 +247,10 @@ pub struct FfiHttpResponse {
 impl FfiHttpResponse {
     /// Create a successful response.
     pub fn success(status: u16, body: String, headers: String) -> Self {
-        let body_cstr = std::ffi::CString::new(body).unwrap_or_else(|_| std::ffi::CString::new("").unwrap());
-        let headers_cstr = std::ffi::CString::new(headers).unwrap_or_else(|_| std::ffi::CString::new("{}").unwrap());
+        let body_cstr =
+            std::ffi::CString::new(body).unwrap_or_else(|_| std::ffi::CString::new("").unwrap());
+        let headers_cstr = std::ffi::CString::new(headers)
+            .unwrap_or_else(|_| std::ffi::CString::new("{}").unwrap());
         Self {
             status,
             body: body_cstr.into_raw(),
@@ -256,7 +262,8 @@ impl FfiHttpResponse {
 
     /// Create an error response.
     pub fn error(message: String, code: i32) -> Self {
-        let error_cstr = std::ffi::CString::new(message).unwrap_or_else(|_| std::ffi::CString::new("Unknown error").unwrap());
+        let error_cstr = std::ffi::CString::new(message)
+            .unwrap_or_else(|_| std::ffi::CString::new("Unknown error").unwrap());
         Self {
             status: 0,
             body: ptr::null_mut(),
@@ -340,7 +347,9 @@ pub unsafe extern "C" fn pubky_http_client_request_full(
 
         // Apply headers if provided
         if let Some(headers_json) = headers_opt {
-            if let Ok(headers_map) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&headers_json) {
+            if let Ok(headers_map) =
+                serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&headers_json)
+            {
                 for (name, value) in headers_map {
                     if let Some(value_str) = value.as_str() {
                         rb = rb.header(name.as_str(), value_str);
@@ -356,7 +365,7 @@ pub unsafe extern "C" fn pubky_http_client_request_full(
 
         let response = rb.send().await?;
         let status = response.status().as_u16();
-        
+
         // Collect headers as JSON
         let mut headers_map = serde_json::Map::new();
         for (name, value) in response.headers() {
@@ -365,7 +374,7 @@ pub unsafe extern "C" fn pubky_http_client_request_full(
             }
         }
         let headers_json = serde_json::to_string(&headers_map).unwrap_or_else(|_| "{}".to_string());
-        
+
         let body_text = response.text().await?;
         Ok::<_, pubky::Error>((status, body_text, headers_json))
     }) {

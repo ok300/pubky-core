@@ -50,7 +50,9 @@ pub unsafe extern "C" fn pubky_session_capabilities(session: *const FfiSession) 
 /// # Safety
 /// The session pointer must be valid.
 #[no_mangle]
-pub unsafe extern "C" fn pubky_session_storage(session: *const FfiSession) -> *mut FfiSessionStorage {
+pub unsafe extern "C" fn pubky_session_storage(
+    session: *const FfiSession,
+) -> *mut FfiSessionStorage {
     if session.is_null() {
         return ptr::null_mut();
     }

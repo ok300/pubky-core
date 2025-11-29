@@ -5,7 +5,7 @@ use std::ptr;
 
 use pkarr::{Keypair, PublicKey};
 
-use crate::error::{FfiBytesResult, FfiResult, cstr_to_string};
+use crate::error::{cstr_to_string, FfiBytesResult, FfiResult};
 
 /// Opaque handle to a Keypair.
 pub struct FfiKeypair(pub(crate) Keypair);
@@ -42,7 +42,9 @@ pub unsafe extern "C" fn pubky_keypair_from_secret_key(
         Err(_) => return ptr::null_mut(),
     };
 
-    Box::into_raw(Box::new(FfiKeypair(Keypair::from_secret_key(&secret_array))))
+    Box::into_raw(Box::new(FfiKeypair(Keypair::from_secret_key(
+        &secret_array,
+    ))))
 }
 
 /// Get the secret key from a keypair.
