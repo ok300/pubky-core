@@ -106,47 +106,46 @@ module PubkySdkFFI
   attach_function :pubky_get_homeserver_of, [:pointer, :pointer], FfiResult.by_value
 
   # HTTP Client (low-level request API)
-  # Note: blocking: true releases the Ruby GIL during network I/O
-  attach_function :pubky_http_client_new, [], :pointer, blocking: true
-  attach_function :pubky_http_client_testnet, [], :pointer, blocking: true
+  attach_function :pubky_http_client_new, [], :pointer
+  attach_function :pubky_http_client_testnet, [], :pointer
   attach_function :pubky_http_client_free, [:pointer], :void
   # Note: body and headers use :pointer instead of :string to allow nil/NULL
-  attach_function :pubky_http_client_request, [:pointer, :string, :string, :pointer, :pointer], FfiResult.by_value, blocking: true
-  attach_function :pubky_http_client_request_bytes, [:pointer, :string, :string, :pointer, :size_t, :pointer], FfiBytesResult.by_value, blocking: true
+  attach_function :pubky_http_client_request, [:pointer, :string, :string, :pointer, :pointer], FfiResult.by_value
+  attach_function :pubky_http_client_request_bytes, [:pointer, :string, :string, :pointer, :size_t, :pointer], FfiBytesResult.by_value
 
   # Signer operations
   attach_function :pubky_signer_public_key, [:pointer], :pointer
-  attach_function :pubky_signer_signup, [:pointer, :pointer, :string], :pointer, blocking: true
-  attach_function :pubky_signer_signin, [:pointer], :pointer, blocking: true
-  attach_function :pubky_signer_signin_blocking, [:pointer], :pointer, blocking: true
+  attach_function :pubky_signer_signup, [:pointer, :pointer, :string], :pointer
+  attach_function :pubky_signer_signin, [:pointer], :pointer
+  attach_function :pubky_signer_signin_blocking, [:pointer], :pointer
   attach_function :pubky_signer_free, [:pointer], :void
 
   # Session operations
   attach_function :pubky_session_public_key, [:pointer], :pointer
   attach_function :pubky_session_capabilities, [:pointer], FfiResult.by_value
   attach_function :pubky_session_storage, [:pointer], :pointer
-  attach_function :pubky_session_signout, [:pointer], FfiResult.by_value, blocking: true
-  attach_function :pubky_session_revalidate, [:pointer], FfiResult.by_value, blocking: true
+  attach_function :pubky_session_signout, [:pointer], FfiResult.by_value
+  attach_function :pubky_session_revalidate, [:pointer], FfiResult.by_value
   attach_function :pubky_session_free, [:pointer], :void
 
-  # Session storage operations (all perform network I/O)
-  attach_function :pubky_session_storage_get_text, [:pointer, :string], FfiResult.by_value, blocking: true
-  attach_function :pubky_session_storage_get_bytes, [:pointer, :string], FfiBytesResult.by_value, blocking: true
-  attach_function :pubky_session_storage_get_json, [:pointer, :string], FfiResult.by_value, blocking: true
-  attach_function :pubky_session_storage_put_text, [:pointer, :string, :string], FfiResult.by_value, blocking: true
-  attach_function :pubky_session_storage_put_bytes, [:pointer, :string, :pointer, :size_t], FfiResult.by_value, blocking: true
-  attach_function :pubky_session_storage_put_json, [:pointer, :string, :string], FfiResult.by_value, blocking: true
-  attach_function :pubky_session_storage_delete, [:pointer, :string], FfiResult.by_value, blocking: true
-  attach_function :pubky_session_storage_exists, [:pointer, :string], FfiResult.by_value, blocking: true
-  attach_function :pubky_session_storage_list, [:pointer, :string, :uint16], FfiResult.by_value, blocking: true
+  # Session storage operations
+  attach_function :pubky_session_storage_get_text, [:pointer, :string], FfiResult.by_value
+  attach_function :pubky_session_storage_get_bytes, [:pointer, :string], FfiBytesResult.by_value
+  attach_function :pubky_session_storage_get_json, [:pointer, :string], FfiResult.by_value
+  attach_function :pubky_session_storage_put_text, [:pointer, :string, :string], FfiResult.by_value
+  attach_function :pubky_session_storage_put_bytes, [:pointer, :string, :pointer, :size_t], FfiResult.by_value
+  attach_function :pubky_session_storage_put_json, [:pointer, :string, :string], FfiResult.by_value
+  attach_function :pubky_session_storage_delete, [:pointer, :string], FfiResult.by_value
+  attach_function :pubky_session_storage_exists, [:pointer, :string], FfiResult.by_value
+  attach_function :pubky_session_storage_list, [:pointer, :string, :uint16], FfiResult.by_value
   attach_function :pubky_session_storage_free, [:pointer], :void
 
-  # Public storage operations (all perform network I/O)
-  attach_function :pubky_public_storage_get_text, [:pointer, :string], FfiResult.by_value, blocking: true
-  attach_function :pubky_public_storage_get_bytes, [:pointer, :string], FfiBytesResult.by_value, blocking: true
-  attach_function :pubky_public_storage_get_json, [:pointer, :string], FfiResult.by_value, blocking: true
-  attach_function :pubky_public_storage_exists, [:pointer, :string], FfiResult.by_value, blocking: true
-  attach_function :pubky_public_storage_list, [:pointer, :string, :uint16], FfiResult.by_value, blocking: true
+  # Public storage operations
+  attach_function :pubky_public_storage_get_text, [:pointer, :string], FfiResult.by_value
+  attach_function :pubky_public_storage_get_bytes, [:pointer, :string], FfiBytesResult.by_value
+  attach_function :pubky_public_storage_get_json, [:pointer, :string], FfiResult.by_value
+  attach_function :pubky_public_storage_exists, [:pointer, :string], FfiResult.by_value
+  attach_function :pubky_public_storage_list, [:pointer, :string, :uint16], FfiResult.by_value
   attach_function :pubky_public_storage_free, [:pointer], :void
 
   # Initialize on load
