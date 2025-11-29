@@ -105,6 +105,13 @@ module PubkySdkFFI
   attach_function :pubky_public_storage, [:pointer], :pointer
   attach_function :pubky_get_homeserver_of, [:pointer, :pointer], FfiResult.by_value
 
+  # HTTP Client (low-level request API)
+  attach_function :pubky_http_client_new, [], :pointer
+  attach_function :pubky_http_client_testnet, [], :pointer
+  attach_function :pubky_http_client_free, [:pointer], :void
+  attach_function :pubky_http_client_request, [:pointer, :string, :string, :string, :string], FfiResult.by_value
+  attach_function :pubky_http_client_request_bytes, [:pointer, :string, :string, :pointer, :size_t, :string], FfiBytesResult.by_value
+
   # Signer operations
   attach_function :pubky_signer_public_key, [:pointer], :pointer
   attach_function :pubky_signer_signup, [:pointer, :pointer, :string], :pointer
@@ -296,6 +303,70 @@ module PubkySdkFFI
       result = PubkySdkFFI.pubky_get_homeserver_of(@ptr, public_key.ptr)
       z32 = PubkySdkFFI.handle_result(result)
       z32 ? PublicKey.from_z32(z32) : nil
+    end
+  end
+
+  # Low-level HTTP client for making raw requests
+  class HttpClient
+    attr_reader :ptr
+
+    def initialize(testnet: false)
+      @ptr = testnet ? PubkySdkFFI.pubky_http_client_testnet : PubkySdkFFI.pubky_http_client_new
+      raise Error.new('Failed to create HTTP client') if @ptr.null?
+      ObjectSpace.define_finalizer(self, self.class.release(@ptr))
+    end
+
+    def self.release(ptr)
+      proc { PubkySdkFFI.pubky_http_client_free(ptr) }
+    end
+
+    # Make an HTTP request and return the response body as text
+    # @param method [String] HTTP method (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS)
+    # @param url [String] URL to request (can be pubky://, https://, or _pubky.*)
+    # @param body [String, nil] Optional request body
+    # @param headers [Hash, nil] Optional headers as a hash
+    # @return [String] Response body as text
+    def request(method, url, body: nil, headers: nil)
+      headers_json = headers ? JSON.generate(headers) : nil
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_http_client_request(@ptr, method.to_s.upcase, url, body, headers_json))
+    end
+
+    # Make an HTTP request and return the response body as bytes
+    # @param method [String] HTTP method
+    # @param url [String] URL to request
+    # @param body [String, nil] Optional request body as bytes
+    # @param headers [Hash, nil] Optional headers as a hash
+    # @return [String] Response body as bytes
+    def request_bytes(method, url, body: nil, headers: nil)
+      headers_json = headers ? JSON.generate(headers) : nil
+      if body
+        body_ptr = FFI::MemoryPointer.new(:uint8, body.bytesize)
+        body_ptr.put_bytes(0, body)
+        PubkySdkFFI.handle_bytes_result(PubkySdkFFI.pubky_http_client_request_bytes(@ptr, method.to_s.upcase, url, body_ptr, body.bytesize, headers_json))
+      else
+        PubkySdkFFI.handle_bytes_result(PubkySdkFFI.pubky_http_client_request_bytes(@ptr, method.to_s.upcase, url, nil, 0, headers_json))
+      end
+    end
+
+    # Convenience methods
+    def get(url, headers: nil)
+      request('GET', url, headers: headers)
+    end
+
+    def post(url, body: nil, headers: nil)
+      request('POST', url, body: body, headers: headers)
+    end
+
+    def put(url, body: nil, headers: nil)
+      request('PUT', url, body: body, headers: headers)
+    end
+
+    def delete(url, headers: nil)
+      request('DELETE', url, headers: headers)
+    end
+
+    def patch(url, body: nil, headers: nil)
+      request('PATCH', url, body: body, headers: headers)
     end
   end
 
@@ -626,6 +697,40 @@ if homeserver
 else
   puts "Homeserver not found"
 end
+```
+
+### 9. Low-Level HTTP Requests
+
+Use the `HttpClient` class for direct HTTP requests to Pubky URLs, HTTPS URLs, or `_pubky.*` domains:
+
+```ruby
+# Create HTTP client
+client = PubkySdkFFI::HttpClient.new
+
+# Make a GET request
+response = client.get("https://example.com")
+puts response
+
+# Make a request to a Pubky resource
+user_id = "operrr8wsbpr3ue9d4qj41ge1kcc6r7fdiy6o3ugjrrhi4y77rdo"
+profile = client.get("https://_pubky.#{user_id}/pub/pubky.app/profile.json")
+puts profile
+
+# POST request with body and headers
+response = client.post(
+  "https://api.example.com/data",
+  body: '{"key": "value"}',
+  headers: { "Content-Type" => "application/json" }
+)
+
+# PUT request
+client.put("https://example.com/resource", body: "updated content")
+
+# DELETE request
+client.delete("https://example.com/resource")
+
+# For testnet
+testnet_client = PubkySdkFFI::HttpClient.new(testnet: true)
 ```
 
 ## Rails Integration Examples

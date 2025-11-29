@@ -47,6 +47,15 @@ void* pubky_signer(const void* pubky, const void* keypair);
 void* pubky_public_storage(const void* pubky);
 FfiResult pubky_get_homeserver_of(const void* pubky, const void* public_key);
 
+// HTTP Client (low-level request API)
+void* pubky_http_client_new(void);
+void* pubky_http_client_testnet(void);
+void pubky_http_client_free(void* client);
+FfiResult pubky_http_client_request(const void* client, const char* method, const char* url, const char* body, const char* headers);
+FfiBytesResult pubky_http_client_request_bytes(const void* client, const char* method, const char* url, const uint8_t* body, size_t body_len, const char* headers);
+FfiHttpResponse pubky_http_client_request_full(const void* client, const char* method, const char* url, const char* body, const char* headers);
+void pubky_http_response_free(FfiHttpResponse response);
+
 // Signer operations
 void* pubky_signer_public_key(const void* signer);
 void* pubky_signer_signup(const void* signer, const void* homeserver, const char* token);
@@ -106,6 +115,14 @@ typedef struct {
     char* error;    // Error message (if error), null otherwise
     int32_t code;   // 0 for success, non-zero error code otherwise
 } FfiBytesResult;
+
+typedef struct {
+    uint16_t status;  // HTTP status code
+    char* body;       // Response body as text
+    char* headers;    // Response headers as JSON string
+    char* error;      // Error message (if error), null otherwise
+    int32_t code;     // 0 for success, non-zero error code otherwise
+} FfiHttpResponse;
 ```
 
 ## Error Codes
@@ -164,6 +181,46 @@ int main() {
     pubky_keypair_free(keypair);
     pubky_free(pubky);
     
+    return 0;
+}
+```
+
+## Low-Level HTTP Client Example (C)
+
+```c
+#include <stdio.h>
+#include <stdint.h>
+
+extern int pubky_init(void);
+extern void* pubky_http_client_new(void);
+extern FfiHttpResponse pubky_http_client_request_full(const void*, const char*, const char*, const char*, const char*);
+extern void pubky_http_response_free(FfiHttpResponse);
+extern void pubky_http_client_free(void*);
+
+int main() {
+    pubky_init();
+    
+    // Create HTTP client
+    void* client = pubky_http_client_new();
+    
+    // Make a GET request to any URL (HTTPS, pubky://, or _pubky.*)
+    FfiHttpResponse resp = pubky_http_client_request_full(
+        client,
+        "GET",
+        "https://example.com",
+        NULL,  // no body
+        NULL   // no custom headers
+    );
+    
+    if (resp.code == 0) {
+        printf("Status: %d\n", resp.status);
+        printf("Body: %s\n", resp.body);
+    } else {
+        printf("Error: %s\n", resp.error);
+    }
+    
+    pubky_http_response_free(resp);
+    pubky_http_client_free(client);
     return 0;
 }
 ```

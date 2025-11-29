@@ -3,6 +3,7 @@
 //! This module provides C-compatible FFI wrappers for the Pubky SDK,
 //! enabling integration with languages that support C FFI (Ruby, Python, etc.).
 
+mod client;
 mod error;
 mod keypair;
 mod pubky;
@@ -11,6 +12,7 @@ mod session;
 mod signer;
 mod storage;
 
+pub use client::*;
 pub use error::*;
 pub use keypair::*;
 pub use pubky::*;
