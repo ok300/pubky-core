@@ -2,6 +2,16 @@
 
 C-compatible FFI bindings for the Pubky SDK, enabling integration with languages that support C FFI (Ruby, Python, Go, etc.).
 
+## Architecture
+
+The FFI bindings use:
+- A **global Tokio multi-threaded runtime** for async SDK operations (keypair, signer, session, storage)
+- A **global blocking reqwest HTTP client** for HTTP requests (simpler, avoids async runtime conflicts)
+
+This hybrid approach provides the best of both worlds:
+- Full SDK functionality through the async runtime
+- Simple, reliable HTTP requests through the blocking client
+
 ## Building
 
 ```bash

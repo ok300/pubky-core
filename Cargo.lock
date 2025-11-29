@@ -3712,6 +3712,7 @@ dependencies = [
  "pubky",
  "pubky-common",
  "pubky-testnet",
+ "reqwest",
  "serde_json",
  "tokio",
 ]
@@ -4090,6 +4091,7 @@ dependencies = [
  "cookie",
  "cookie_store",
  "encoding_rs",
+ "futures-channel",
  "futures-core",
  "futures-util",
  "h2",

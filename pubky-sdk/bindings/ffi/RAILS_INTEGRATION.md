@@ -2,6 +2,14 @@
 
 This guide explains how to integrate the Pubky SDK into a Ruby on Rails application using FFI (Foreign Function Interface).
 
+## Architecture
+
+The FFI bindings use:
+- A **global Tokio multi-threaded runtime** for async SDK operations (keypair, signer, session, storage)
+- A **global blocking reqwest HTTP client** for HTTP requests - simpler and avoids async runtime conflicts with Ruby
+
+This hybrid approach provides reliable HTTP requests that work well with Ruby's GIL (Global Interpreter Lock).
+
 ## Prerequisites
 
 - Ruby 2.7+ with Rails 6.0+

@@ -1,16 +1,33 @@
-//! FFI bindings for the PubkyHttpClient.
+//! FFI bindings for HTTP client using reqwest blocking client.
+//!
+//! This module provides a simple, blocking HTTP client for FFI that doesn't
+//! require an async runtime. This avoids potential conflicts with the Ruby GIL
+//! and other threading issues.
 
+use once_cell::sync::Lazy;
+use reqwest::blocking::Client;
+use reqwest::Method;
 use std::ffi::CStr;
 use std::os::raw::c_char;
 use std::ptr;
 
-use pubky::{Method, PubkyHttpClient};
-
 use crate::error::{FfiBytesResult, FfiResult};
-use crate::runtime::RUNTIME;
 
-/// Opaque handle to a PubkyHttpClient.
-pub struct FfiHttpClient(pub(crate) PubkyHttpClient);
+/// Global reqwest blocking client - reuses connection pools.
+static GLOBAL_CLIENT: Lazy<Client> = Lazy::new(|| {
+    Client::builder()
+        .build()
+        .expect("Failed to create HTTP client")
+});
+
+/// Opaque handle to a blocking HTTP client.
+/// In this implementation, we use a global client, but keep the handle
+/// for API compatibility.
+pub struct FfiHttpClient {
+    /// Whether this is a testnet client (currently unused, for future extension)
+    #[allow(dead_code)]
+    testnet: bool,
+}
 
 /// Safely convert a C string pointer to a Rust String.
 /// Returns None if the pointer is null or if the string is invalid UTF-8.
@@ -24,29 +41,27 @@ unsafe fn safe_cstr_to_string(ptr: *const c_char) -> Option<String> {
     }
 }
 
-/// Create a new PubkyHttpClient with mainnet defaults.
+/// Create a new HTTP client with mainnet defaults.
 /// Returns a pointer to the client, or null on failure.
 /// The caller must free the client with `pubky_http_client_free`.
 #[no_mangle]
 pub extern "C" fn pubky_http_client_new() -> *mut FfiHttpClient {
-    match PubkyHttpClient::new() {
-        Ok(client) => Box::into_raw(Box::new(FfiHttpClient(client))),
-        Err(_) => ptr::null_mut(),
-    }
+    // Force initialization of the global client
+    let _ = &*GLOBAL_CLIENT;
+    Box::into_raw(Box::new(FfiHttpClient { testnet: false }))
 }
 
-/// Create a PubkyHttpClient preconfigured for a local testnet.
+/// Create an HTTP client preconfigured for a local testnet.
 /// Returns a pointer to the client, or null on failure.
 /// The caller must free the client with `pubky_http_client_free`.
 #[no_mangle]
 pub extern "C" fn pubky_http_client_testnet() -> *mut FfiHttpClient {
-    match PubkyHttpClient::testnet() {
-        Ok(client) => Box::into_raw(Box::new(FfiHttpClient(client))),
-        Err(_) => ptr::null_mut(),
-    }
+    // Force initialization of the global client
+    let _ = &*GLOBAL_CLIENT;
+    Box::into_raw(Box::new(FfiHttpClient { testnet: true }))
 }
 
-/// Free a PubkyHttpClient.
+/// Free an HTTP client.
 ///
 /// # Safety
 /// The client pointer must have been returned by a pubky FFI function.
@@ -57,36 +72,29 @@ pub unsafe extern "C" fn pubky_http_client_free(client: *mut FfiHttpClient) {
     }
 }
 
-/// Perform an HTTP request using the PubkyHttpClient.
+/// Perform an HTTP request using the blocking HTTP client.
 ///
-/// This method can make requests to:
-/// 1. Standard HTTPS URLs
-/// 2. HTTPS URLs with a pkarr PublicKey as top-level domain
-/// 3. `_pubky.<public-key>` URLs
+/// This method makes standard HTTP/HTTPS requests synchronously.
 ///
 /// Returns a result containing the response body as text.
 ///
 /// # Arguments
-/// * `client` - Pointer to the PubkyHttpClient
+/// * `client` - Pointer to the HTTP client (can be NULL, global client will be used)
 /// * `method` - HTTP method string (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS)
-/// * `url` - The URL to request (can be pubky:// or https://)
+/// * `url` - The URL to request
 /// * `body` - Optional request body (can be null)
 /// * `headers` - Optional headers as JSON object string (can be null), e.g. `{"Content-Type": "application/json"}`
 ///
 /// # Safety
-/// The client pointer must be valid. Method and url must be valid C strings or null.
+/// Method and url must be valid C strings.
 #[no_mangle]
 pub unsafe extern "C" fn pubky_http_client_request(
-    client: *const FfiHttpClient,
+    _client: *const FfiHttpClient,
     method: *const c_char,
     url: *const c_char,
     body: *const c_char,
     headers: *const c_char,
 ) -> FfiResult {
-    if client.is_null() {
-        return FfiResult::error("Null client pointer".to_string(), -1);
-    }
-
     let method_str = match safe_cstr_to_string(method) {
         Some(s) => s,
         None => return FfiResult::error("Invalid or null method".to_string(), -1),
@@ -111,10 +119,9 @@ pub unsafe extern "C" fn pubky_http_client_request(
     let body_opt = safe_cstr_to_string(body);
     let headers_opt = safe_cstr_to_string(headers);
 
-    let client_ref = &(*client).0;
-
-    match RUNTIME.block_on(async {
-        let mut rb = client_ref.request(http_method, &url_str);
+    // Build and execute the request using the global blocking client
+    let result = (|| -> Result<String, reqwest::Error> {
+        let mut rb = GLOBAL_CLIENT.request(http_method, &url_str);
 
         // Apply headers if provided
         if let Some(headers_json) = headers_opt {
@@ -134,40 +141,38 @@ pub unsafe extern "C" fn pubky_http_client_request(
             rb = rb.body(body_content);
         }
 
-        let response = rb.send().await?;
-        let text = response.text().await?;
-        Ok::<_, pubky::Error>(text)
-    }) {
+        let response = rb.send()?;
+        let text = response.text()?;
+        Ok(text)
+    })();
+
+    match result {
         Ok(text) => FfiResult::success(text),
-        Err(e) => FfiResult::from_pubky_error(e),
+        Err(e) => FfiResult::error(e.to_string(), 1),
     }
 }
 
 /// Perform an HTTP request and return the response as bytes.
 ///
 /// # Arguments
-/// * `client` - Pointer to the PubkyHttpClient
+/// * `client` - Pointer to the HTTP client (can be NULL, global client will be used)
 /// * `method` - HTTP method string (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS)
-/// * `url` - The URL to request (can be pubky:// or https://)
+/// * `url` - The URL to request
 /// * `body` - Optional request body as bytes (can be null)
 /// * `body_len` - Length of the body bytes
 /// * `headers` - Optional headers as JSON object string (can be null)
 ///
 /// # Safety
-/// The client pointer must be valid. Method and url must be valid C strings.
+/// Method and url must be valid C strings.
 #[no_mangle]
 pub unsafe extern "C" fn pubky_http_client_request_bytes(
-    client: *const FfiHttpClient,
+    _client: *const FfiHttpClient,
     method: *const c_char,
     url: *const c_char,
     body: *const u8,
     body_len: usize,
     headers: *const c_char,
 ) -> FfiBytesResult {
-    if client.is_null() {
-        return FfiBytesResult::error("Null client pointer".to_string(), -1);
-    }
-
     let method_str = match safe_cstr_to_string(method) {
         Some(s) => s,
         None => return FfiBytesResult::error("Invalid or null method".to_string(), -1),
@@ -197,10 +202,9 @@ pub unsafe extern "C" fn pubky_http_client_request_bytes(
 
     let headers_opt = safe_cstr_to_string(headers);
 
-    let client_ref = &(*client).0;
-
-    match RUNTIME.block_on(async {
-        let mut rb = client_ref.request(http_method, &url_str);
+    // Build and execute the request using the global blocking client
+    let result = (|| -> Result<Vec<u8>, reqwest::Error> {
+        let mut rb = GLOBAL_CLIENT.request(http_method, &url_str);
 
         // Apply headers if provided
         if let Some(headers_json) = headers_opt {
@@ -220,10 +224,12 @@ pub unsafe extern "C" fn pubky_http_client_request_bytes(
             rb = rb.body(body_content);
         }
 
-        let response = rb.send().await?;
-        let bytes = response.bytes().await?;
-        Ok::<_, pubky::Error>(bytes.to_vec())
-    }) {
+        let response = rb.send()?;
+        let bytes = response.bytes()?;
+        Ok(bytes.to_vec())
+    })();
+
+    match result {
         Ok(bytes) => FfiBytesResult::success(bytes),
         Err(e) => FfiBytesResult::error(e.to_string(), 1),
     }
@@ -296,26 +302,22 @@ pub unsafe extern "C" fn pubky_http_response_free(response: FfiHttpResponse) {
 /// Returns status code, body, and headers.
 ///
 /// # Arguments
-/// * `client` - Pointer to the PubkyHttpClient
+/// * `client` - Pointer to the HTTP client (can be NULL, global client will be used)
 /// * `method` - HTTP method string (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS)
-/// * `url` - The URL to request (can be pubky:// or https://)
+/// * `url` - The URL to request
 /// * `body` - Optional request body (can be null)
 /// * `headers` - Optional headers as JSON object string (can be null)
 ///
 /// # Safety
-/// The client pointer must be valid. Method and url must be valid C strings.
+/// Method and url must be valid C strings.
 #[no_mangle]
 pub unsafe extern "C" fn pubky_http_client_request_full(
-    client: *const FfiHttpClient,
+    _client: *const FfiHttpClient,
     method: *const c_char,
     url: *const c_char,
     body: *const c_char,
     headers: *const c_char,
 ) -> FfiHttpResponse {
-    if client.is_null() {
-        return FfiHttpResponse::error("Null client pointer".to_string(), -1);
-    }
-
     let method_str = match safe_cstr_to_string(method) {
         Some(s) => s,
         None => return FfiHttpResponse::error("Invalid or null method".to_string(), -1),
@@ -340,10 +342,9 @@ pub unsafe extern "C" fn pubky_http_client_request_full(
     let body_opt = safe_cstr_to_string(body);
     let headers_opt = safe_cstr_to_string(headers);
 
-    let client_ref = &(*client).0;
-
-    match RUNTIME.block_on(async {
-        let mut rb = client_ref.request(http_method, &url_str);
+    // Build and execute the request using the global blocking client
+    let result = (|| -> Result<(u16, String, String), reqwest::Error> {
+        let mut rb = GLOBAL_CLIENT.request(http_method, &url_str);
 
         // Apply headers if provided
         if let Some(headers_json) = headers_opt {
@@ -363,21 +364,25 @@ pub unsafe extern "C" fn pubky_http_client_request_full(
             rb = rb.body(body_content);
         }
 
-        let response = rb.send().await?;
+        let response = rb.send()?;
         let status = response.status().as_u16();
 
         // Collect headers as JSON
-        let mut headers_map = serde_json::Map::new();
+        let mut response_headers_map = serde_json::Map::new();
         for (name, value) in response.headers() {
             if let Ok(v) = value.to_str() {
-                headers_map.insert(name.to_string(), serde_json::Value::String(v.to_string()));
+                response_headers_map
+                    .insert(name.to_string(), serde_json::Value::String(v.to_string()));
             }
         }
-        let headers_json = serde_json::to_string(&headers_map).unwrap_or_else(|_| "{}".to_string());
+        let headers_json =
+            serde_json::to_string(&response_headers_map).unwrap_or_else(|_| "{}".to_string());
 
-        let body_text = response.text().await?;
-        Ok::<_, pubky::Error>((status, body_text, headers_json))
-    }) {
+        let body_text = response.text()?;
+        Ok((status, body_text, headers_json))
+    })();
+
+    match result {
         Ok((status, body, headers)) => FfiHttpResponse::success(status, body, headers),
         Err(e) => FfiHttpResponse::error(e.to_string(), 1),
     }
