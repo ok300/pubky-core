@@ -2,6 +2,7 @@
 
 use std::ffi::CStr;
 use std::os::raw::c_char;
+use std::panic;
 use std::ptr;
 
 use pubky::{Method, PubkyHttpClient};
@@ -29,10 +30,18 @@ unsafe fn safe_cstr_to_string(ptr: *const c_char) -> Option<String> {
 /// The caller must free the client with `pubky_http_client_free`.
 #[no_mangle]
 pub extern "C" fn pubky_http_client_new() -> *mut FfiHttpClient {
-    match PubkyHttpClient::new() {
-        Ok(client) => Box::into_raw(Box::new(FfiHttpClient(client))),
-        Err(_) => ptr::null_mut(),
-    }
+    // Catch panics to prevent undefined behavior at FFI boundary
+    let result = panic::catch_unwind(|| {
+        // Force runtime initialization
+        let _ = &*RUNTIME;
+        
+        match PubkyHttpClient::new() {
+            Ok(client) => Box::into_raw(Box::new(FfiHttpClient(client))),
+            Err(_) => ptr::null_mut(),
+        }
+    });
+    
+    result.unwrap_or(ptr::null_mut())
 }
 
 /// Create a PubkyHttpClient preconfigured for a local testnet.
@@ -40,10 +49,18 @@ pub extern "C" fn pubky_http_client_new() -> *mut FfiHttpClient {
 /// The caller must free the client with `pubky_http_client_free`.
 #[no_mangle]
 pub extern "C" fn pubky_http_client_testnet() -> *mut FfiHttpClient {
-    match PubkyHttpClient::testnet() {
-        Ok(client) => Box::into_raw(Box::new(FfiHttpClient(client))),
-        Err(_) => ptr::null_mut(),
-    }
+    // Catch panics to prevent undefined behavior at FFI boundary
+    let result = panic::catch_unwind(|| {
+        // Force runtime initialization
+        let _ = &*RUNTIME;
+        
+        match PubkyHttpClient::testnet() {
+            Ok(client) => Box::into_raw(Box::new(FfiHttpClient(client))),
+            Err(_) => ptr::null_mut(),
+        }
+    });
+    
+    result.unwrap_or(ptr::null_mut())
 }
 
 /// Free a PubkyHttpClient.
@@ -53,7 +70,9 @@ pub extern "C" fn pubky_http_client_testnet() -> *mut FfiHttpClient {
 #[no_mangle]
 pub unsafe extern "C" fn pubky_http_client_free(client: *mut FfiHttpClient) {
     if !client.is_null() {
-        drop(Box::from_raw(client));
+        let _ = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+            drop(Box::from_raw(client));
+        }));
     }
 }
 
@@ -83,62 +102,73 @@ pub unsafe extern "C" fn pubky_http_client_request(
     body: *const c_char,
     headers: *const c_char,
 ) -> FfiResult {
-    if client.is_null() {
-        return FfiResult::error("Null client pointer".to_string(), -1);
-    }
+    // Copy raw pointers to use in panic::catch_unwind
+    let client_ptr = client;
+    let method_ptr = method;
+    let url_ptr = url;
+    let body_ptr = body;
+    let headers_ptr = headers;
+    
+    let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+        if client_ptr.is_null() {
+            return FfiResult::error("Null client pointer".to_string(), -1);
+        }
 
-    let method_str = match safe_cstr_to_string(method) {
-        Some(s) => s,
-        None => return FfiResult::error("Invalid or null method".to_string(), -1),
-    };
+        let method_str = match safe_cstr_to_string(method_ptr) {
+            Some(s) => s,
+            None => return FfiResult::error("Invalid or null method".to_string(), -1),
+        };
 
-    let url_str = match safe_cstr_to_string(url) {
-        Some(s) => s,
-        None => return FfiResult::error("Invalid or null URL".to_string(), -1),
-    };
+        let url_str = match safe_cstr_to_string(url_ptr) {
+            Some(s) => s,
+            None => return FfiResult::error("Invalid or null URL".to_string(), -1),
+        };
 
-    let http_method = match method_str.to_uppercase().as_str() {
-        "GET" => Method::GET,
-        "POST" => Method::POST,
-        "PUT" => Method::PUT,
-        "DELETE" => Method::DELETE,
-        "PATCH" => Method::PATCH,
-        "HEAD" => Method::HEAD,
-        "OPTIONS" => Method::OPTIONS,
-        _ => return FfiResult::error(format!("Unsupported HTTP method: {}", method_str), -1),
-    };
+        let http_method = match method_str.to_uppercase().as_str() {
+            "GET" => Method::GET,
+            "POST" => Method::POST,
+            "PUT" => Method::PUT,
+            "DELETE" => Method::DELETE,
+            "PATCH" => Method::PATCH,
+            "HEAD" => Method::HEAD,
+            "OPTIONS" => Method::OPTIONS,
+            _ => return FfiResult::error(format!("Unsupported HTTP method: {}", method_str), -1),
+        };
 
-    let body_opt = safe_cstr_to_string(body);
-    let headers_opt = safe_cstr_to_string(headers);
+        let body_opt = safe_cstr_to_string(body_ptr);
+        let headers_opt = safe_cstr_to_string(headers_ptr);
 
-    let client_ref = &(*client).0;
+        let client_ref = &(*client_ptr).0;
 
-    match RUNTIME.block_on(async {
-        let mut rb = client_ref.request(http_method, &url_str);
+        match RUNTIME.block_on(async {
+            let mut rb = client_ref.request(http_method, &url_str);
 
-        // Apply headers if provided
-        if let Some(headers_json) = headers_opt {
-            if let Ok(headers_map) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&headers_json) {
-                for (name, value) in headers_map {
-                    if let Some(value_str) = value.as_str() {
-                        rb = rb.header(name.as_str(), value_str);
+            // Apply headers if provided
+            if let Some(headers_json) = headers_opt {
+                if let Ok(headers_map) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&headers_json) {
+                    for (name, value) in headers_map {
+                        if let Some(value_str) = value.as_str() {
+                            rb = rb.header(name.as_str(), value_str);
+                        }
                     }
                 }
             }
-        }
 
-        // Apply body if provided
-        if let Some(body_content) = body_opt {
-            rb = rb.body(body_content);
-        }
+            // Apply body if provided
+            if let Some(body_content) = body_opt {
+                rb = rb.body(body_content);
+            }
 
-        let response = rb.send().await?;
-        let text = response.text().await?;
-        Ok::<_, pubky::Error>(text)
-    }) {
-        Ok(text) => FfiResult::success(text),
-        Err(e) => FfiResult::from_pubky_error(e),
-    }
+            let response = rb.send().await?;
+            let text = response.text().await?;
+            Ok::<_, pubky::Error>(text)
+        }) {
+            Ok(text) => FfiResult::success(text),
+            Err(e) => FfiResult::from_pubky_error(e),
+        }
+    }));
+    
+    result.unwrap_or_else(|_| FfiResult::error("Internal panic in FFI".to_string(), -99))
 }
 
 /// Perform an HTTP request and return the response as bytes.
@@ -162,67 +192,77 @@ pub unsafe extern "C" fn pubky_http_client_request_bytes(
     body_len: usize,
     headers: *const c_char,
 ) -> FfiBytesResult {
-    if client.is_null() {
-        return FfiBytesResult::error("Null client pointer".to_string(), -1);
-    }
+    let client_ptr = client;
+    let method_ptr = method;
+    let url_ptr = url;
+    let body_ptr = body;
+    let headers_ptr = headers;
+    
+    let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+        if client_ptr.is_null() {
+            return FfiBytesResult::error("Null client pointer".to_string(), -1);
+        }
 
-    let method_str = match safe_cstr_to_string(method) {
-        Some(s) => s,
-        None => return FfiBytesResult::error("Invalid or null method".to_string(), -1),
-    };
+        let method_str = match safe_cstr_to_string(method_ptr) {
+            Some(s) => s,
+            None => return FfiBytesResult::error("Invalid or null method".to_string(), -1),
+        };
 
-    let url_str = match safe_cstr_to_string(url) {
-        Some(s) => s,
-        None => return FfiBytesResult::error("Invalid or null URL".to_string(), -1),
-    };
+        let url_str = match safe_cstr_to_string(url_ptr) {
+            Some(s) => s,
+            None => return FfiBytesResult::error("Invalid or null URL".to_string(), -1),
+        };
 
-    let http_method = match method_str.to_uppercase().as_str() {
-        "GET" => Method::GET,
-        "POST" => Method::POST,
-        "PUT" => Method::PUT,
-        "DELETE" => Method::DELETE,
-        "PATCH" => Method::PATCH,
-        "HEAD" => Method::HEAD,
-        "OPTIONS" => Method::OPTIONS,
-        _ => return FfiBytesResult::error(format!("Unsupported HTTP method: {}", method_str), -1),
-    };
+        let http_method = match method_str.to_uppercase().as_str() {
+            "GET" => Method::GET,
+            "POST" => Method::POST,
+            "PUT" => Method::PUT,
+            "DELETE" => Method::DELETE,
+            "PATCH" => Method::PATCH,
+            "HEAD" => Method::HEAD,
+            "OPTIONS" => Method::OPTIONS,
+            _ => return FfiBytesResult::error(format!("Unsupported HTTP method: {}", method_str), -1),
+        };
 
-    let body_opt = if body.is_null() || body_len == 0 {
-        None
-    } else {
-        Some(std::slice::from_raw_parts(body, body_len).to_vec())
-    };
+        let body_opt = if body_ptr.is_null() || body_len == 0 {
+            None
+        } else {
+            Some(std::slice::from_raw_parts(body_ptr, body_len).to_vec())
+        };
 
-    let headers_opt = safe_cstr_to_string(headers);
+        let headers_opt = safe_cstr_to_string(headers_ptr);
 
-    let client_ref = &(*client).0;
+        let client_ref = &(*client_ptr).0;
 
-    match RUNTIME.block_on(async {
-        let mut rb = client_ref.request(http_method, &url_str);
+        match RUNTIME.block_on(async {
+            let mut rb = client_ref.request(http_method, &url_str);
 
-        // Apply headers if provided
-        if let Some(headers_json) = headers_opt {
-            if let Ok(headers_map) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&headers_json) {
-                for (name, value) in headers_map {
-                    if let Some(value_str) = value.as_str() {
-                        rb = rb.header(name.as_str(), value_str);
+            // Apply headers if provided
+            if let Some(headers_json) = headers_opt {
+                if let Ok(headers_map) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&headers_json) {
+                    for (name, value) in headers_map {
+                        if let Some(value_str) = value.as_str() {
+                            rb = rb.header(name.as_str(), value_str);
+                        }
                     }
                 }
             }
-        }
 
-        // Apply body if provided
-        if let Some(body_content) = body_opt {
-            rb = rb.body(body_content);
-        }
+            // Apply body if provided
+            if let Some(body_content) = body_opt {
+                rb = rb.body(body_content);
+            }
 
-        let response = rb.send().await?;
-        let bytes = response.bytes().await?;
-        Ok::<_, pubky::Error>(bytes.to_vec())
-    }) {
-        Ok(bytes) => FfiBytesResult::success(bytes),
-        Err(e) => FfiBytesResult::error(e.to_string(), 1),
-    }
+            let response = rb.send().await?;
+            let bytes = response.bytes().await?;
+            Ok::<_, pubky::Error>(bytes.to_vec())
+        }) {
+            Ok(bytes) => FfiBytesResult::success(bytes),
+            Err(e) => FfiBytesResult::error(e.to_string(), 1),
+        }
+    }));
+    
+    result.unwrap_or_else(|_| FfiBytesResult::error("Internal panic in FFI".to_string(), -99))
 }
 
 /// HTTP response structure for detailed response information.
@@ -273,15 +313,17 @@ impl FfiHttpResponse {
 /// The response must have been returned by a pubky FFI function.
 #[no_mangle]
 pub unsafe extern "C" fn pubky_http_response_free(response: FfiHttpResponse) {
-    if !response.body.is_null() {
-        drop(std::ffi::CString::from_raw(response.body));
-    }
-    if !response.headers.is_null() {
-        drop(std::ffi::CString::from_raw(response.headers));
-    }
-    if !response.error.is_null() {
-        drop(std::ffi::CString::from_raw(response.error));
-    }
+    let _ = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+        if !response.body.is_null() {
+            drop(std::ffi::CString::from_raw(response.body));
+        }
+        if !response.headers.is_null() {
+            drop(std::ffi::CString::from_raw(response.headers));
+        }
+        if !response.error.is_null() {
+            drop(std::ffi::CString::from_raw(response.error));
+        }
+    }));
 }
 
 /// Perform an HTTP request and return detailed response information.
@@ -305,71 +347,81 @@ pub unsafe extern "C" fn pubky_http_client_request_full(
     body: *const c_char,
     headers: *const c_char,
 ) -> FfiHttpResponse {
-    if client.is_null() {
-        return FfiHttpResponse::error("Null client pointer".to_string(), -1);
-    }
+    let client_ptr = client;
+    let method_ptr = method;
+    let url_ptr = url;
+    let body_ptr = body;
+    let headers_ptr = headers;
+    
+    let result = panic::catch_unwind(panic::AssertUnwindSafe(|| {
+        if client_ptr.is_null() {
+            return FfiHttpResponse::error("Null client pointer".to_string(), -1);
+        }
 
-    let method_str = match safe_cstr_to_string(method) {
-        Some(s) => s,
-        None => return FfiHttpResponse::error("Invalid or null method".to_string(), -1),
-    };
+        let method_str = match safe_cstr_to_string(method_ptr) {
+            Some(s) => s,
+            None => return FfiHttpResponse::error("Invalid or null method".to_string(), -1),
+        };
 
-    let url_str = match safe_cstr_to_string(url) {
-        Some(s) => s,
-        None => return FfiHttpResponse::error("Invalid or null URL".to_string(), -1),
-    };
+        let url_str = match safe_cstr_to_string(url_ptr) {
+            Some(s) => s,
+            None => return FfiHttpResponse::error("Invalid or null URL".to_string(), -1),
+        };
 
-    let http_method = match method_str.to_uppercase().as_str() {
-        "GET" => Method::GET,
-        "POST" => Method::POST,
-        "PUT" => Method::PUT,
-        "DELETE" => Method::DELETE,
-        "PATCH" => Method::PATCH,
-        "HEAD" => Method::HEAD,
-        "OPTIONS" => Method::OPTIONS,
-        _ => return FfiHttpResponse::error(format!("Unsupported HTTP method: {}", method_str), -1),
-    };
+        let http_method = match method_str.to_uppercase().as_str() {
+            "GET" => Method::GET,
+            "POST" => Method::POST,
+            "PUT" => Method::PUT,
+            "DELETE" => Method::DELETE,
+            "PATCH" => Method::PATCH,
+            "HEAD" => Method::HEAD,
+            "OPTIONS" => Method::OPTIONS,
+            _ => return FfiHttpResponse::error(format!("Unsupported HTTP method: {}", method_str), -1),
+        };
 
-    let body_opt = safe_cstr_to_string(body);
-    let headers_opt = safe_cstr_to_string(headers);
+        let body_opt = safe_cstr_to_string(body_ptr);
+        let headers_opt = safe_cstr_to_string(headers_ptr);
 
-    let client_ref = &(*client).0;
+        let client_ref = &(*client_ptr).0;
 
-    match RUNTIME.block_on(async {
-        let mut rb = client_ref.request(http_method, &url_str);
+        match RUNTIME.block_on(async {
+            let mut rb = client_ref.request(http_method, &url_str);
 
-        // Apply headers if provided
-        if let Some(headers_json) = headers_opt {
-            if let Ok(headers_map) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&headers_json) {
-                for (name, value) in headers_map {
-                    if let Some(value_str) = value.as_str() {
-                        rb = rb.header(name.as_str(), value_str);
+            // Apply headers if provided
+            if let Some(headers_json) = headers_opt {
+                if let Ok(headers_map) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&headers_json) {
+                    for (name, value) in headers_map {
+                        if let Some(value_str) = value.as_str() {
+                            rb = rb.header(name.as_str(), value_str);
+                        }
                     }
                 }
             }
-        }
 
-        // Apply body if provided
-        if let Some(body_content) = body_opt {
-            rb = rb.body(body_content);
-        }
-
-        let response = rb.send().await?;
-        let status = response.status().as_u16();
-        
-        // Collect headers as JSON
-        let mut headers_map = serde_json::Map::new();
-        for (name, value) in response.headers() {
-            if let Ok(v) = value.to_str() {
-                headers_map.insert(name.to_string(), serde_json::Value::String(v.to_string()));
+            // Apply body if provided
+            if let Some(body_content) = body_opt {
+                rb = rb.body(body_content);
             }
+
+            let response = rb.send().await?;
+            let status = response.status().as_u16();
+            
+            // Collect headers as JSON
+            let mut headers_map = serde_json::Map::new();
+            for (name, value) in response.headers() {
+                if let Ok(v) = value.to_str() {
+                    headers_map.insert(name.to_string(), serde_json::Value::String(v.to_string()));
+                }
+            }
+            let headers_json = serde_json::to_string(&headers_map).unwrap_or_else(|_| "{}".to_string());
+            
+            let body_text = response.text().await?;
+            Ok::<_, pubky::Error>((status, body_text, headers_json))
+        }) {
+            Ok((status, body, headers)) => FfiHttpResponse::success(status, body, headers),
+            Err(e) => FfiHttpResponse::error(e.to_string(), 1),
         }
-        let headers_json = serde_json::to_string(&headers_map).unwrap_or_else(|_| "{}".to_string());
-        
-        let body_text = response.text().await?;
-        Ok::<_, pubky::Error>((status, body_text, headers_json))
-    }) {
-        Ok((status, body, headers)) => FfiHttpResponse::success(status, body, headers),
-        Err(e) => FfiHttpResponse::error(e.to_string(), 1),
-    }
+    }));
+    
+    result.unwrap_or_else(|_| FfiHttpResponse::error("Internal panic in FFI".to_string(), -99))
 }
