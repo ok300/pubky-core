@@ -15,13 +15,13 @@ This guide explains how to integrate the Pubky SDK into a Ruby on Rails applicat
 From the repository root directory:
 
 ```bash
-cargo build --release --package pubky-ffi
+cargo build --release --package pubky-sdk-ffi
 ```
 
 This creates the shared library:
-- **Linux**: `target/release/libpubky_ffi.so`
-- **macOS**: `target/release/libpubky_ffi.dylib`
-- **Windows**: `target/release/pubky_ffi.dll`
+- **Linux**: `target/release/libpubky_sdk_ffi.so`
+- **macOS**: `target/release/libpubky_sdk_ffi.dylib`
+- **Windows**: `target/release/pubky_sdk_ffi.dll`
 
 Copy the library to a location accessible by your Rails app (e.g., `lib/` or a system path).
 
@@ -55,11 +55,11 @@ module Pubky
   # Load the shared library
   lib_path = case RUBY_PLATFORM
              when /darwin/
-               Rails.root.join('lib', 'libpubky_ffi.dylib')
+               Rails.root.join('lib', 'libpubky_sdk_ffi.dylib')
              when /linux/
-               Rails.root.join('lib', 'libpubky_ffi.so')
+               Rails.root.join('lib', 'libpubky_sdk_ffi.so')
              when /mingw|mswin/
-               Rails.root.join('lib', 'pubky_ffi.dll')
+               Rails.root.join('lib', 'pubky_sdk_ffi.dll')
              else
                raise "Unsupported platform: #{RUBY_PLATFORM}"
              end

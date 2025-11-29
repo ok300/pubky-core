@@ -1,5 +1,5 @@
 [package]
-name = "pubky-ffi"
+name = "pubky-sdk-ffi"
 version = "0.6.0-rc.6"
 edition = "2021"
 description = "Pubky SDK FFI bindings for cross-language integration"

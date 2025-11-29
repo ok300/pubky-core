@@ -6,12 +6,12 @@ C-compatible FFI bindings for the Pubky SDK, enabling integration with languages
 
 ```bash
 # Build the shared library (release)
-cargo build --release --package pubky-ffi
+cargo build --release --package pubky-sdk-ffi
 
 # The library will be at:
-# - Linux: target/release/libpubky_ffi.so
-# - macOS: target/release/libpubky_ffi.dylib
-# - Windows: target/release/pubky_ffi.dll
+# - Linux: target/release/libpubky_sdk_ffi.so
+# - macOS: target/release/libpubky_sdk_ffi.dylib
+# - Windows: target/release/pubky_sdk_ffi.dll
 ```
 
 ## C Header

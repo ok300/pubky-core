@@ -3640,19 +3640,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "pubky-ffi"
-version = "0.6.0-rc.6"
-dependencies = [
- "once_cell",
- "pkarr",
- "pubky",
- "pubky-common",
- "pubky-testnet",
- "serde_json",
- "tokio",
-]
-
-[[package]]
 name = "pubky-homeserver"
 version = "0.6.0-rc.6"
 dependencies = [
@@ -3714,6 +3701,19 @@ dependencies = [
  "tracing-subscriber",
  "url",
  "uuid",
+]
+
+[[package]]
+name = "pubky-sdk-ffi"
+version = "0.6.0-rc.6"
+dependencies = [
+ "once_cell",
+ "pkarr",
+ "pubky",
+ "pubky-common",
+ "pubky-testnet",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
