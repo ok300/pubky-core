@@ -701,7 +701,7 @@ end
 
 ### 9. Low-Level HTTP Requests
 
-Use the `HttpClient` class for direct HTTP requests to Pubky URLs, HTTPS URLs, or `_pubky.*` domains:
+Use the `HttpClient` class for direct HTTP requests to Pubky URLs, HTTPS URLs, or `_pubky.*` domains. This wraps the FFI function `pubky_http_client_request`:
 
 ```ruby
 # Create HTTP client
@@ -729,8 +729,54 @@ client.put("https://example.com/resource", body: "updated content")
 # DELETE request
 client.delete("https://example.com/resource")
 
+# Generic request method for any HTTP method
+response = client.request("PATCH", "https://api.example.com/items/123",
+  body: '{"status": "updated"}',
+  headers: { "Content-Type" => "application/json" }
+)
+
 # For testnet
 testnet_client = PubkySdkFFI::HttpClient.new(testnet: true)
+```
+
+#### Direct FFI Usage (Advanced)
+
+For advanced use cases, you can call the FFI functions directly:
+
+```ruby
+# Create HTTP client via FFI
+client_ptr = PubkySdkFFI.pubky_http_client_new
+
+# Make a request using pubky_http_client_request
+# Arguments: client_ptr, method, url, body (or nil), headers_json (or nil)
+result = PubkySdkFFI.pubky_http_client_request(
+  client_ptr,
+  "GET",
+  "https://_pubky.#{user_id}/pub/pubky.app/profile.json",
+  nil,  # no body
+  nil   # no custom headers
+)
+
+if result[:code] == 0
+  puts result[:data].read_string
+  PubkySdkFFI.pubky_string_free(result[:data])
+else
+  puts "Error: #{result[:error].read_string}"
+  PubkySdkFFI.pubky_string_free(result[:error])
+end
+
+# POST with body and headers
+headers_json = '{"Content-Type": "application/json", "Authorization": "Bearer token123"}'
+result = PubkySdkFFI.pubky_http_client_request(
+  client_ptr,
+  "POST",
+  "https://api.example.com/data",
+  '{"key": "value"}',
+  headers_json
+)
+
+# Clean up
+PubkySdkFFI.pubky_http_client_free(client_ptr)
 ```
 
 ## Rails Integration Examples
