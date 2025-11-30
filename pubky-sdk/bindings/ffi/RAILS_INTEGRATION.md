@@ -51,18 +51,14 @@ require 'json'
 module PubkySdkFFI
   extend FFI::Library
 
-  # Load the compiled library - adjust path as needed
-  # For development, you might use an absolute path
-  lib_path = case RUBY_PLATFORM
-             when /darwin/
-               File.expand_path('../../path/to/libpubky_sdk_ffi.dylib', __dir__)
-             when /linux/
-               File.expand_path('../../path/to/libpubky_sdk_ffi.so', __dir__)
-             when /mingw|mswin/
-               File.expand_path('../../path/to/pubky_sdk_ffi.dll', __dir__)
+  # Load the shared library based on platform
+  LIB_NAME = case RbConfig::CONFIG['host_os']
+             when /darwin/  then 'libpubky_sdk_ffi.dylib'
+             when /linux/   then 'libpubky_sdk_ffi.so'
+             when /mswin|mingw/ then 'libpubky_sdk_ffi.dll'
              end
 
-  ffi_lib lib_path
+  ffi_lib Rails.root.join('lib', 'native', LIB_NAME).to_s
 
   # Memory management - strings are automatically freed by the GC callback
   attach_function :pubky_string_free, [:pointer], :void
