@@ -1,0 +1,55 @@
+[package]
+name = "pubky-sdk-ffi"
+version = "0.6.0-rc.6"
+edition = "2024"
+description = "Pubky SDK FFI bindings for integration with other languages (e.g., Ruby, Python)"
+authors = [
+    "SeverinAlexB <severin@synonym.to>",
+    "SHAcollision <shacollision@synonym.to>",
+    "Nuh <nuh@nuh.dev>",
+]
+license = "MIT"
+homepage = "https://github.com/pubky/pubky-core"
+repository = "https://github.com/pubky/pubky-core"
+keywords = ["web", "dht", "dns", "decentralized", "identity", "ffi"]
+categories = [
+    "network-programming",
+    "cryptography",
+    "web-programming",
+    "authentication",
+    "api-bindings",
+]
+publish = false
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+pubky = { path = "../../../pubky-sdk", version = "0.6.0-rc.6", features = ["json"] }
+pubky-common = { path = "../../../pubky-common", version = "0.6.0-rc.6" }
+pkarr = { workspace = true, features = ["full"] }
+tokio = { version = "1.43.0", features = ["rt-multi-thread"] }
+libc = "0.2"
+serde_json = "1"
+url = "2.5"
+hex = "0.4"
+
+[lints.rust]
+ambiguous_negative_literals = "warn"
+missing_debug_implementations = "warn"
+redundant_imports = "warn"
+redundant_lifetimes = "warn"
+trivial_numeric_casts = "warn"
+unsafe_op_in_unsafe_fn = "warn"
+unused_lifetimes = "warn"
+
+[lints.clippy]
+cargo = { level = "warn", priority = -1 }
+complexity = { level = "warn", priority = -1 }
+correctness = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+perf = { level = "warn", priority = -1 }
+style = { level = "warn", priority = -1 }
+suspicious = { level = "warn", priority = -1 }
+# Allow multiple crate versions from transitive dependencies
+multiple_crate_versions = "allow"
