@@ -57,7 +57,10 @@ fn get_pubky() -> Result<Pubky, String> {
     if guard.is_none() {
         *guard = Some(Pubky::new().map_err(|e| e.to_string())?);
     }
-    Ok(guard.as_ref().unwrap().clone())
+    guard
+        .as_ref()
+        .cloned()
+        .ok_or_else(|| "Failed to initialize Pubky instance".to_string())
 }
 
 /// Get or initialize the testnet Pubky instance.
@@ -66,7 +69,10 @@ fn get_pubky_testnet() -> Result<Pubky, String> {
     if guard.is_none() {
         *guard = Some(Pubky::testnet().map_err(|e| e.to_string())?);
     }
-    Ok(guard.as_ref().unwrap().clone())
+    guard
+        .as_ref()
+        .cloned()
+        .ok_or_else(|| "Failed to initialize Pubky testnet instance".to_string())
 }
 
 /// Get or initialize the mainnet HTTP client.
@@ -75,7 +81,10 @@ fn get_http_client() -> Result<PubkyHttpClient, String> {
     if guard.is_none() {
         *guard = Some(PubkyHttpClient::new().map_err(|e| e.to_string())?);
     }
-    Ok(guard.as_ref().unwrap().clone())
+    guard
+        .as_ref()
+        .cloned()
+        .ok_or_else(|| "Failed to initialize HTTP client".to_string())
 }
 
 /// Get or initialize the testnet HTTP client.
@@ -86,7 +95,10 @@ fn get_http_client_testnet() -> Result<PubkyHttpClient, String> {
     if guard.is_none() {
         *guard = Some(PubkyHttpClient::testnet().map_err(|e| e.to_string())?);
     }
-    Ok(guard.as_ref().unwrap().clone())
+    guard
+        .as_ref()
+        .cloned()
+        .ok_or_else(|| "Failed to initialize HTTP testnet client".to_string())
 }
 
 /// Convert a C string pointer to a Rust string, returning an error message if invalid.
@@ -116,10 +128,20 @@ unsafe fn c_str_to_string_or(ptr: *const c_char, default: &str) -> String {
 }
 
 /// Allocate a C string from a Rust string. The caller must free this with `pubky_string_free`.
+///
+/// If the string contains interior null bytes (which shouldn't happen with JSON),
+/// returns an error JSON response instead.
 fn string_to_c(s: &str) -> *mut c_char {
-    CString::new(s)
-        .map(CString::into_raw)
-        .unwrap_or(std::ptr::null_mut())
+    match CString::new(s) {
+        Ok(cstring) => cstring.into_raw(),
+        Err(_) => {
+            // The string contains interior null bytes - this shouldn't happen with JSON
+            // Return a simple error message that won't have null bytes
+            CString::new(r#"{"success":false,"error":"String contains invalid null bytes"}"#)
+                .expect("Error message should not contain null bytes")
+                .into_raw()
+        }
+    }
 }
 
 /// Create a JSON error response.
