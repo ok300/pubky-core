@@ -4,7 +4,7 @@ use std::ptr;
 
 use crate::error::FfiResult;
 use crate::keypair::FfiPublicKey;
-use crate::runtime::RUNTIME;
+use crate::runtime::block_on;
 use crate::storage::FfiSessionStorage;
 
 /// Opaque handle to a PubkySession.
@@ -77,7 +77,7 @@ pub unsafe extern "C" fn pubky_session_signout(session: *mut FfiSession) -> FfiR
     let session = Box::from_raw(session);
     let inner_session = session.0;
 
-    match RUNTIME.block_on(inner_session.signout()) {
+    match block_on(inner_session.signout()) {
         Ok(()) => FfiResult::success_empty(),
         Err((e, _)) => FfiResult::from_pubky_error(e),
     }
@@ -96,7 +96,7 @@ pub unsafe extern "C" fn pubky_session_revalidate(session: *const FfiSession) ->
 
     let session = &(*session).0;
 
-    match RUNTIME.block_on(session.revalidate()) {
+    match block_on(session.revalidate()) {
         Ok(Some(_)) => FfiResult::success("valid".to_string()),
         Ok(None) => FfiResult::success("invalid".to_string()),
         Err(e) => FfiResult::from_pubky_error(e),

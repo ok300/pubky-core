@@ -5,7 +5,7 @@ use std::ptr;
 
 use crate::error::{cstr_to_string, FfiResult};
 use crate::keypair::FfiPublicKey;
-use crate::runtime::RUNTIME;
+use crate::runtime::block_on;
 use crate::session::FfiSession;
 
 /// Opaque handle to a PubkySigner.
@@ -48,7 +48,7 @@ pub unsafe extern "C" fn pubky_signer_signup(
     let homeserver_pk = &(*homeserver).0;
     let token = cstr_to_string(signup_token);
 
-    match RUNTIME.block_on(signer.signup(homeserver_pk, token.as_deref())) {
+    match block_on(signer.signup(homeserver_pk, token.as_deref())) {
         Ok(session) => Box::into_raw(Box::new(FfiSession(session))),
         Err(_) => ptr::null_mut(),
     }
@@ -75,7 +75,7 @@ pub unsafe extern "C" fn pubky_signer_signup_with_result(
     let homeserver_pk = &(*homeserver).0;
     let token = cstr_to_string(signup_token);
 
-    match RUNTIME.block_on(signer.signup(homeserver_pk, token.as_deref())) {
+    match block_on(signer.signup(homeserver_pk, token.as_deref())) {
         Ok(session) => {
             *session_out = Box::into_raw(Box::new(FfiSession(session)));
             FfiResult::success_empty()
@@ -98,7 +98,7 @@ pub unsafe extern "C" fn pubky_signer_signin(signer: *const FfiSigner) -> *mut F
 
     let signer = &(*signer).0;
 
-    match RUNTIME.block_on(signer.signin()) {
+    match block_on(signer.signin()) {
         Ok(session) => Box::into_raw(Box::new(FfiSession(session))),
         Err(_) => ptr::null_mut(),
     }
@@ -120,7 +120,7 @@ pub unsafe extern "C" fn pubky_signer_signin_with_result(
 
     let signer = &(*signer).0;
 
-    match RUNTIME.block_on(signer.signin()) {
+    match block_on(signer.signin()) {
         Ok(session) => {
             *session_out = Box::into_raw(Box::new(FfiSession(session)));
             FfiResult::success_empty()
@@ -143,7 +143,7 @@ pub unsafe extern "C" fn pubky_signer_signin_blocking(signer: *const FfiSigner) 
 
     let signer = &(*signer).0;
 
-    match RUNTIME.block_on(signer.signin_blocking()) {
+    match block_on(signer.signin_blocking()) {
         Ok(session) => Box::into_raw(Box::new(FfiSession(session))),
         Err(_) => ptr::null_mut(),
     }

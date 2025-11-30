@@ -1,13 +1,13 @@
 //! FFI bindings for the Pubky facade.
 //!
 //! Uses lazy-initialized global Pubky instances for mainnet and testnet.
-//! All operations use `RUNTIME.block_on()` to execute async calls synchronously.
+//! All operations use `block_on()` to execute async calls synchronously.
 
 use std::ptr;
 
 use crate::error::FfiResult;
 use crate::keypair::{FfiKeypair, FfiPublicKey};
-use crate::runtime::{GLOBAL_PUBKY, GLOBAL_PUBKY_TESTNET, RUNTIME};
+use crate::runtime::{block_on, get_global_pubky, get_global_pubky_testnet};
 use crate::signer::FfiSigner;
 use crate::storage::FfiPublicStorage;
 
@@ -22,9 +22,9 @@ impl FfiPubky {
     /// Get a reference to the appropriate global Pubky instance.
     pub(crate) fn get(&self) -> &'static pubky::Pubky {
         if self.testnet {
-            &GLOBAL_PUBKY_TESTNET
+            get_global_pubky_testnet()
         } else {
-            &GLOBAL_PUBKY
+            get_global_pubky()
         }
     }
 }
@@ -37,7 +37,7 @@ impl FfiPubky {
 #[no_mangle]
 pub extern "C" fn pubky_new() -> *mut FfiPubky {
     // Force initialization of global mainnet instance
-    let _ = &*GLOBAL_PUBKY;
+    let _ = get_global_pubky();
     Box::into_raw(Box::new(FfiPubky { testnet: false }))
 }
 
@@ -49,7 +49,7 @@ pub extern "C" fn pubky_new() -> *mut FfiPubky {
 #[no_mangle]
 pub extern "C" fn pubky_testnet() -> *mut FfiPubky {
     // Force initialization of global testnet instance
-    let _ = &*GLOBAL_PUBKY_TESTNET;
+    let _ = get_global_pubky_testnet();
     Box::into_raw(Box::new(FfiPubky { testnet: true }))
 }
 
@@ -118,7 +118,7 @@ pub unsafe extern "C" fn pubky_get_homeserver_of(
     let pubky_handle = &*pubky;
     let user_pk = &(*user_public_key).0;
 
-    match RUNTIME.block_on(pubky_handle.get().get_homeserver_of(user_pk)) {
+    match block_on(pubky_handle.get().get_homeserver_of(user_pk)) {
         Some(pk) => FfiResult::success(pk.to_string()),
         None => FfiResult::success_empty(),
     }

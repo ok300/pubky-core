@@ -3,7 +3,7 @@
 use std::os::raw::c_char;
 
 use crate::error::{cstr_to_string, FfiBytesResult, FfiResult};
-use crate::runtime::RUNTIME;
+use crate::runtime::block_on;
 
 /// Opaque handle to SessionStorage (authenticated, as-me storage).
 pub struct FfiSessionStorage(pub(crate) pubky::SessionStorage);
@@ -34,7 +34,7 @@ pub unsafe extern "C" fn pubky_session_storage_get_text(
 
     let storage = &(*storage).0;
 
-    match RUNTIME.block_on(async {
+    match block_on(async {
         let resp = storage.get(&path).await?;
         resp.text().await.map_err(pubky::Error::from)
     }) {
@@ -64,7 +64,7 @@ pub unsafe extern "C" fn pubky_session_storage_get_bytes(
 
     let storage = &(*storage).0;
 
-    match RUNTIME.block_on(async {
+    match block_on(async {
         let resp = storage.get(&path).await?;
         resp.bytes().await.map_err(pubky::Error::from)
     }) {
@@ -94,7 +94,7 @@ pub unsafe extern "C" fn pubky_session_storage_get_json(
 
     let storage = &(*storage).0;
 
-    match RUNTIME.block_on(storage.get_json::<_, serde_json::Value>(&path)) {
+    match block_on(storage.get_json::<_, serde_json::Value>(&path)) {
         Ok(value) => match serde_json::to_string(&value) {
             Ok(json_str) => FfiResult::success(json_str),
             Err(e) => FfiResult::error(e.to_string(), 1),
@@ -130,7 +130,7 @@ pub unsafe extern "C" fn pubky_session_storage_put_text(
 
     let storage = &(*storage).0;
 
-    match RUNTIME.block_on(storage.put(&path, body)) {
+    match block_on(storage.put(&path, body)) {
         Ok(_) => FfiResult::success_empty(),
         Err(e) => FfiResult::from_pubky_error(e),
     }
@@ -175,7 +175,7 @@ pub unsafe extern "C" fn pubky_session_storage_put_bytes(
 
     let storage = &(*storage).0;
 
-    match RUNTIME.block_on(storage.put(&path, body_bytes)) {
+    match block_on(storage.put(&path, body_bytes)) {
         Ok(_) => FfiResult::success_empty(),
         Err(e) => FfiResult::from_pubky_error(e),
     }
@@ -213,7 +213,7 @@ pub unsafe extern "C" fn pubky_session_storage_put_json(
 
     let storage = &(*storage).0;
 
-    match RUNTIME.block_on(storage.put_json(&path, &value)) {
+    match block_on(storage.put_json(&path, &value)) {
         Ok(_) => FfiResult::success_empty(),
         Err(e) => FfiResult::from_pubky_error(e),
     }
@@ -240,7 +240,7 @@ pub unsafe extern "C" fn pubky_session_storage_delete(
 
     let storage = &(*storage).0;
 
-    match RUNTIME.block_on(storage.delete(&path)) {
+    match block_on(storage.delete(&path)) {
         Ok(_) => FfiResult::success_empty(),
         Err(e) => FfiResult::from_pubky_error(e),
     }
@@ -267,7 +267,7 @@ pub unsafe extern "C" fn pubky_session_storage_exists(
 
     let storage = &(*storage).0;
 
-    match RUNTIME.block_on(storage.exists(&path)) {
+    match block_on(storage.exists(&path)) {
         Ok(exists) => FfiResult::success(if exists { "true" } else { "false" }.to_string()),
         Err(e) => FfiResult::from_pubky_error(e),
     }
@@ -296,7 +296,7 @@ pub unsafe extern "C" fn pubky_session_storage_list(
 
     let storage = &(*storage).0;
 
-    match RUNTIME.block_on(async {
+    match block_on(async {
         let builder = storage.list(&path)?;
         let entries = builder.limit(limit).send().await?;
         let urls: Vec<String> = entries.iter().map(|e| e.to_pubky_url()).collect();
@@ -344,7 +344,7 @@ pub unsafe extern "C" fn pubky_public_storage_get_text(
 
     let storage = &(*storage).0;
 
-    match RUNTIME.block_on(async {
+    match block_on(async {
         let resp = storage.get(&address).await?;
         resp.text().await.map_err(pubky::Error::from)
     }) {
@@ -374,7 +374,7 @@ pub unsafe extern "C" fn pubky_public_storage_get_bytes(
 
     let storage = &(*storage).0;
 
-    match RUNTIME.block_on(async {
+    match block_on(async {
         let resp = storage.get(&address).await?;
         resp.bytes().await.map_err(pubky::Error::from)
     }) {
@@ -404,7 +404,7 @@ pub unsafe extern "C" fn pubky_public_storage_get_json(
 
     let storage = &(*storage).0;
 
-    match RUNTIME.block_on(storage.get_json::<_, serde_json::Value>(&address)) {
+    match block_on(storage.get_json::<_, serde_json::Value>(&address)) {
         Ok(value) => match serde_json::to_string(&value) {
             Ok(json_str) => FfiResult::success(json_str),
             Err(e) => FfiResult::error(e.to_string(), 1),
@@ -434,7 +434,7 @@ pub unsafe extern "C" fn pubky_public_storage_exists(
 
     let storage = &(*storage).0;
 
-    match RUNTIME.block_on(storage.exists(&address)) {
+    match block_on(storage.exists(&address)) {
         Ok(exists) => FfiResult::success(if exists { "true" } else { "false" }.to_string()),
         Err(e) => FfiResult::from_pubky_error(e),
     }
@@ -463,7 +463,7 @@ pub unsafe extern "C" fn pubky_public_storage_list(
 
     let storage = &(*storage).0;
 
-    match RUNTIME.block_on(async {
+    match block_on(async {
         let builder = storage.list(&address)?;
         let entries = builder.limit(limit).send().await?;
         let urls: Vec<String> = entries.iter().map(|e| e.to_pubky_url()).collect();
