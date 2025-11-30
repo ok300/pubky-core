@@ -15,13 +15,16 @@
 //! The singleton instances are protected by `Mutex` and are thread-safe.
 
 #![allow(clippy::missing_panics_doc, reason = "FFI boundary functions")]
-#![allow(clippy::not_unsafe_ptr_arg_deref, reason = "FFI boundary with documented safety")]
+#![allow(
+    clippy::not_unsafe_ptr_arg_deref,
+    reason = "FFI boundary with documented safety"
+)]
 
 use std::ffi::{CStr, CString};
 use std::os::raw::c_char;
 use std::sync::{LazyLock, Mutex};
 
-use pubky::{Capabilities, Keypair, Method, PublicKey, Pubky, PubkyHttpClient};
+use pubky::{Capabilities, Keypair, Method, Pubky, PubkyHttpClient, PublicKey};
 use tokio::runtime::Runtime;
 use url::Url;
 
@@ -795,9 +798,9 @@ pub unsafe extern "C" fn pubky_http_request(
 
         // Apply headers if provided
         if let Some(headers_str) = headers_opt {
-            if let Ok(headers) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(
-                &headers_str,
-            ) {
+            if let Ok(headers) =
+                serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&headers_str)
+            {
                 for (key, value) in headers {
                     if let Some(v) = value.as_str() {
                         rb = rb.header(key.as_str(), v);
@@ -907,7 +910,10 @@ pub unsafe extern "C" fn pubky_resolve_homeserver(
 /// Returns JSON with authorization URL.
 /// The returned string must be freed with `pubky_string_free`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn pubky_auth_start(capabilities: *const c_char, testnet: i32) -> *mut c_char {
+pub unsafe extern "C" fn pubky_auth_start(
+    capabilities: *const c_char,
+    testnet: i32,
+) -> *mut c_char {
     // SAFETY: Caller guarantees capabilities is valid.
     let caps_str = unsafe { c_str_to_string_or(capabilities, "") };
 
