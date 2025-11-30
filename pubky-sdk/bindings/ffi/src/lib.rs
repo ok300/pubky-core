@@ -794,14 +794,14 @@ pub unsafe extern "C" fn pubky_http_request(
         let mut rb = client.request(http_method, &parsed_url);
 
         // Apply headers if provided
-        if let Some(headers_str) = headers_opt
-            && let Ok(headers) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(
+        if let Some(headers_str) = headers_opt {
+            if let Ok(headers) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(
                 &headers_str,
-            )
-        {
-            for (key, value) in headers {
-                if let Some(v) = value.as_str() {
-                    rb = rb.header(key.as_str(), v);
+            ) {
+                for (key, value) in headers {
+                    if let Some(v) = value.as_str() {
+                        rb = rb.header(key.as_str(), v);
+                    }
                 }
             }
         }
