@@ -49,7 +49,7 @@ pkarr-relay = { version = "0.11.3" }
 # (3.0.0-pre.1) and curve25519-dalek (5.0.0-pre.1). Since these prereleases were
 # published, newer incompatible prerelease versions have been released to crates.io.
 # The curve25519-dalek 5.0.0-pre.5 is incompatible with digest 0.11.0-rc.11 due to
-# API changes in the digest crate (removal of crypto_common re-export).
+# API changes in the digest crate (crypto_common was renamed to just 'common').
 # 
 # We patch these crates to use compatible versions from git.
 [patch.crates-io]
