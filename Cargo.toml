@@ -41,6 +41,21 @@ opt-level = 'z'
 # Setting "default-features = false" because cargo doesn't allow member crates to override the root "default-features" flag, which if not set, is implied to be true.
 # Member crates that need "default-features = false" should leave it out of their dependency specification, as it's inherited from here.
 # Member crates that need "default-features = true" should add a "default" feature to the features list, which is equivalent.
-pkarr = { version = "3.10.0", default-features = false }
-mainline = { version = "5.4.0" }
-pkarr-relay = { version = "0.11.1" }
+pkarr = { version = "5.0.2", default-features = false }
+mainline = { version = "6.0.1" }
+pkarr-relay = { version = "0.11.3" }
+
+# IMPORTANT: The pkarr 5.0.2 release depends on prerelease versions of ed25519-dalek
+# (3.0.0-pre.1) and curve25519-dalek (5.0.0-pre.1). Since these prereleases were
+# published, newer incompatible prerelease versions have been released to crates.io.
+# The curve25519-dalek 5.0.0-pre.5 is incompatible with digest 0.11.0-rc.11 due to
+# API changes in the digest crate (removal of crypto_common re-export).
+# 
+# We patch these crates to use compatible versions from git.
+[patch.crates-io]
+ed25519-dalek = { git = "https://github.com/dalek-cryptography/curve25519-dalek", tag = "ed25519-3.0.0-pre.1" }
+curve25519-dalek = { git = "https://github.com/dalek-cryptography/curve25519-dalek", tag = "curve25519-5.0.0-pre.1" }
+# Patch digest and sha2 to versions that are compatible with the crypto_common re-export
+digest = { git = "https://github.com/RustCrypto/traits", tag = "digest-v0.11.0-rc.2" }
+crypto-common = { git = "https://github.com/RustCrypto/traits", tag = "digest-v0.11.0-rc.2" }
+sha2 = { git = "https://github.com/RustCrypto/hashes", tag = "sha2-v0.11.0-rc.2" }
