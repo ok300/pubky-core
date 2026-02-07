@@ -1,5 +1,5 @@
 [package]
-name = "examples"
+name = "pubky-examples"
 version = "0.6.0"
 edition.workspace = true
 publish = false
