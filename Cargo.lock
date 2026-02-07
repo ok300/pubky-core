@@ -3624,7 +3624,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "pubky-examples"
+name = "pubky-core-examples"
 version = "0.6.0"
 dependencies = [
  "anyhow",
