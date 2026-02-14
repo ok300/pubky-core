@@ -1,0 +1,968 @@
+# Pubky SDK Integration with Ruby on Rails via FFI
+
+This guide explains how to integrate the Pubky SDK into a Ruby on Rails application using FFI (Foreign Function Interface).
+
+## Architecture
+
+The FFI bindings use **lazy-initialized global singletons** for efficient operation:
+
+- **Global Tokio multi-threaded runtime** - all async SDK operations use `block_on()` for synchronous execution
+- **Global Pubky instance** - a single mainnet client with automatic connection pooling
+- **Global Pubky testnet instance** - for development/testing environments
+- **Global blocking reqwest HTTP client** - for direct HTTP requests
+
+This singleton pattern:
+- Provides efficient connection pooling across all calls
+- Releases Ruby's GIL during blocking network operations
+- Avoids conflicts between Tokio runtime and Ruby threads
+- Handles thread-safety automatically
+
+## Prerequisites
+
+- Ruby 2.7+ with Rails 6.0+
+- Rust toolchain (for building the FFI library)
+- `ffi` gem
+
+## Installation
+
+### 1. Build the Pubky FFI Library
+
+From the repository root directory:
+
+```bash
+cargo build --release --package pubky-sdk-ffi
+```
+
+This creates the shared library:
+- **Linux**: `target/release/libpubky_sdk_ffi.so`
+- **macOS**: `target/release/libpubky_sdk_ffi.dylib`
+- **Windows**: `target/release/pubky_sdk_ffi.dll`
+
+Copy the library to a location accessible by your Rails app (e.g., `lib/` or a system path).
+
+### 2. Add the FFI Gem
+
+Add to your `Gemfile`:
+
+```ruby
+gem 'ffi'
+```
+
+Then run:
+
+```bash
+bundle install
+```
+
+### 3. Create the Ruby FFI Wrapper
+
+Create `app/lib/pubky_sdk_ffi.rb` (or `lib/pubky_sdk_ffi.rb`):
+
+```ruby
+# frozen_string_literal: true
+
+require 'ffi'
+require 'json'
+
+module PubkySdkFFI
+  extend FFI::Library
+
+  # Load the shared library based on platform
+  LIB_NAME = case RbConfig::CONFIG['host_os']
+             when /darwin/  then 'libpubky_sdk_ffi.dylib'
+             when /linux/   then 'libpubky_sdk_ffi.so'
+             when /mswin|mingw/ then 'libpubky_sdk_ffi.dll'
+             end
+
+  ffi_lib Rails.root.join('lib', 'native', LIB_NAME).to_s
+
+  # Result structures
+  class FfiResult < FFI::Struct
+    layout :data, :pointer,
+           :error, :pointer,
+           :code, :int32
+  end
+
+  class FfiBytesResult < FFI::Struct
+    layout :data, :pointer,
+           :len, :size_t,
+           :error, :pointer,
+           :code, :int32
+  end
+
+  # Initialization
+  attach_function :pubky_init, [], :int32
+
+  # Memory management
+  attach_function :pubky_string_free, [:pointer], :void
+  attach_function :pubky_bytes_free, [:pointer, :size_t], :void
+
+  # Keypair operations
+  attach_function :pubky_keypair_random, [], :pointer
+  attach_function :pubky_keypair_from_secret_key, [:pointer, :size_t], :pointer
+  attach_function :pubky_keypair_secret_key, [:pointer], FfiBytesResult.by_value
+  attach_function :pubky_keypair_public_key, [:pointer], :pointer
+  attach_function :pubky_keypair_free, [:pointer], :void
+  attach_function :pubky_keypair_create_recovery_file, [:pointer, :string], FfiBytesResult.by_value
+  attach_function :pubky_keypair_from_recovery_file, [:pointer, :size_t, :string], :pointer
+
+  # PublicKey operations
+  attach_function :pubky_public_key_z32, [:pointer], FfiResult.by_value
+  attach_function :pubky_public_key_bytes, [:pointer], FfiBytesResult.by_value
+  attach_function :pubky_public_key_from_z32, [:string], :pointer
+  attach_function :pubky_public_key_free, [:pointer], :void
+
+  # Pubky facade
+  attach_function :pubky_new, [], :pointer
+  attach_function :pubky_testnet, [], :pointer
+  attach_function :pubky_free, [:pointer], :void
+  attach_function :pubky_signer, [:pointer, :pointer], :pointer
+  attach_function :pubky_public_storage, [:pointer], :pointer
+  attach_function :pubky_get_homeserver_of, [:pointer, :pointer], FfiResult.by_value
+
+  # HTTP Client (low-level request API)
+  attach_function :pubky_http_client_new, [], :pointer
+  attach_function :pubky_http_client_testnet, [], :pointer
+  attach_function :pubky_http_client_free, [:pointer], :void
+  # Note: body and headers use :pointer instead of :string to allow nil/NULL
+  attach_function :pubky_http_client_request, [:pointer, :string, :string, :pointer, :pointer], FfiResult.by_value
+  attach_function :pubky_http_client_request_bytes, [:pointer, :string, :string, :pointer, :size_t, :pointer], FfiBytesResult.by_value
+
+  # Signer operations
+  attach_function :pubky_signer_public_key, [:pointer], :pointer
+  attach_function :pubky_signer_signup, [:pointer, :pointer, :string], :pointer
+  attach_function :pubky_signer_signin, [:pointer], :pointer
+  attach_function :pubky_signer_signin_blocking, [:pointer], :pointer
+  attach_function :pubky_signer_free, [:pointer], :void
+
+  # Session operations
+  attach_function :pubky_session_public_key, [:pointer], :pointer
+  attach_function :pubky_session_capabilities, [:pointer], FfiResult.by_value
+  attach_function :pubky_session_storage, [:pointer], :pointer
+  attach_function :pubky_session_signout, [:pointer], FfiResult.by_value
+  attach_function :pubky_session_revalidate, [:pointer], FfiResult.by_value
+  attach_function :pubky_session_free, [:pointer], :void
+
+  # Session storage operations
+  attach_function :pubky_session_storage_get_text, [:pointer, :string], FfiResult.by_value
+  attach_function :pubky_session_storage_get_bytes, [:pointer, :string], FfiBytesResult.by_value
+  attach_function :pubky_session_storage_get_json, [:pointer, :string], FfiResult.by_value
+  attach_function :pubky_session_storage_put_text, [:pointer, :string, :string], FfiResult.by_value
+  attach_function :pubky_session_storage_put_bytes, [:pointer, :string, :pointer, :size_t], FfiResult.by_value
+  attach_function :pubky_session_storage_put_json, [:pointer, :string, :string], FfiResult.by_value
+  attach_function :pubky_session_storage_delete, [:pointer, :string], FfiResult.by_value
+  attach_function :pubky_session_storage_exists, [:pointer, :string], FfiResult.by_value
+  attach_function :pubky_session_storage_list, [:pointer, :string, :uint16], FfiResult.by_value
+  attach_function :pubky_session_storage_free, [:pointer], :void
+
+  # Public storage operations
+  attach_function :pubky_public_storage_get_text, [:pointer, :string], FfiResult.by_value
+  attach_function :pubky_public_storage_get_bytes, [:pointer, :string], FfiBytesResult.by_value
+  attach_function :pubky_public_storage_get_json, [:pointer, :string], FfiResult.by_value
+  attach_function :pubky_public_storage_exists, [:pointer, :string], FfiResult.by_value
+  attach_function :pubky_public_storage_list, [:pointer, :string, :uint16], FfiResult.by_value
+  attach_function :pubky_public_storage_free, [:pointer], :void
+
+  # Initialize on load
+  pubky_init
+
+  # Error class
+  class Error < StandardError
+    attr_reader :code
+
+    def initialize(message, code = -1)
+      @code = code
+      super(message)
+    end
+  end
+
+  # Helper to handle FfiResult
+  def self.handle_result(result, free_data: true)
+    if result[:code] != 0
+      error_msg = result[:error].null? ? 'Unknown error' : result[:error].read_string
+      pubky_string_free(result[:error]) unless result[:error].null?
+      raise Error.new(error_msg, result[:code])
+    end
+
+    return nil if result[:data].null?
+
+    data = result[:data].read_string
+    pubky_string_free(result[:data]) if free_data
+    data
+  end
+
+  # Helper to handle FfiBytesResult
+  def self.handle_bytes_result(result)
+    if result[:code] != 0
+      error_msg = result[:error].null? ? 'Unknown error' : result[:error].read_string
+      pubky_string_free(result[:error]) unless result[:error].null?
+      raise Error.new(error_msg, result[:code])
+    end
+
+    return nil if result[:data].null? || result[:len] == 0
+
+    data = result[:data].read_bytes(result[:len])
+    pubky_bytes_free(result[:data], result[:len])
+    data
+  end
+
+  # High-level wrapper classes
+
+  class Keypair
+    attr_reader :ptr
+
+    def initialize(ptr)
+      raise Error.new('Failed to create keypair') if ptr.null?
+      @ptr = ptr
+      ObjectSpace.define_finalizer(self, self.class.release(@ptr))
+    end
+
+    def self.release(ptr)
+      proc { PubkySdkFFI.pubky_keypair_free(ptr) }
+    end
+
+    # Generate a random keypair
+    def self.random
+      new(PubkySdkFFI.pubky_keypair_random)
+    end
+
+    # Create from a 32-byte secret key
+    def self.from_secret_key(secret_key)
+      raise ArgumentError, 'Secret key must be 32 bytes' unless secret_key.bytesize == 32
+
+      secret_ptr = FFI::MemoryPointer.new(:uint8, 32)
+      secret_ptr.put_bytes(0, secret_key)
+      new(PubkySdkFFI.pubky_keypair_from_secret_key(secret_ptr, 32))
+    end
+
+    # Create from a recovery file
+    def self.from_recovery_file(data, passphrase)
+      data_ptr = FFI::MemoryPointer.new(:uint8, data.bytesize)
+      data_ptr.put_bytes(0, data)
+      new(PubkySdkFFI.pubky_keypair_from_recovery_file(data_ptr, data.bytesize, passphrase))
+    end
+
+    # Get the secret key (32 bytes)
+    def secret_key
+      PubkySdkFFI.handle_bytes_result(PubkySdkFFI.pubky_keypair_secret_key(@ptr))
+    end
+
+    # Get the public key
+    def public_key
+      PublicKey.new(PubkySdkFFI.pubky_keypair_public_key(@ptr))
+    end
+
+    # Create an encrypted recovery file
+    def create_recovery_file(passphrase)
+      PubkySdkFFI.handle_bytes_result(PubkySdkFFI.pubky_keypair_create_recovery_file(@ptr, passphrase))
+    end
+  end
+
+  class PublicKey
+    attr_reader :ptr
+
+    def initialize(ptr)
+      raise Error.new('Failed to create public key') if ptr.null?
+      @ptr = ptr
+      ObjectSpace.define_finalizer(self, self.class.release(@ptr))
+    end
+
+    def self.release(ptr)
+      proc { PubkySdkFFI.pubky_public_key_free(ptr) }
+    end
+
+    # Create from z-base32 string
+    def self.from_z32(z32)
+      new(PubkySdkFFI.pubky_public_key_from_z32(z32))
+    end
+
+    # Get z-base32 string representation
+    def z32
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_public_key_z32(@ptr))
+    end
+
+    # Get raw bytes
+    def bytes
+      PubkySdkFFI.handle_bytes_result(PubkySdkFFI.pubky_public_key_bytes(@ptr))
+    end
+
+    def to_s
+      z32
+    end
+  end
+
+  class Client
+    attr_reader :ptr
+
+    def initialize(testnet: false)
+      @ptr = testnet ? PubkySdkFFI.pubky_testnet : PubkySdkFFI.pubky_new
+      raise Error.new('Failed to create Pubky client') if @ptr.null?
+      ObjectSpace.define_finalizer(self, self.class.release(@ptr))
+    end
+
+    def self.release(ptr)
+      proc { PubkySdkFFI.pubky_free(ptr) }
+    end
+
+    # Create a signer from a keypair
+    def signer(keypair)
+      Signer.new(PubkySdkFFI.pubky_signer(@ptr, keypair.ptr), keypair)
+    end
+
+    # Get public storage
+    def public_storage
+      PublicStorage.new(PubkySdkFFI.pubky_public_storage(@ptr))
+    end
+
+    # Resolve homeserver for a public key
+    def get_homeserver_of(public_key)
+      result = PubkySdkFFI.pubky_get_homeserver_of(@ptr, public_key.ptr)
+      z32 = PubkySdkFFI.handle_result(result)
+      z32 ? PublicKey.from_z32(z32) : nil
+    end
+  end
+
+  # Low-level HTTP client for making raw requests
+  class HttpClient
+    attr_reader :ptr
+
+    def initialize(testnet: false)
+      @ptr = testnet ? PubkySdkFFI.pubky_http_client_testnet : PubkySdkFFI.pubky_http_client_new
+      raise Error.new('Failed to create HTTP client') if @ptr.null?
+      ObjectSpace.define_finalizer(self, self.class.release(@ptr))
+    end
+
+    def self.release(ptr)
+      proc { PubkySdkFFI.pubky_http_client_free(ptr) }
+    end
+
+    # Convert a string to a C string pointer, or return nil for NULL
+    def to_cstr(str)
+      return nil if str.nil?
+      ptr = FFI::MemoryPointer.new(:char, str.bytesize + 1)
+      ptr.put_string(0, str)
+      ptr
+    end
+
+    # Make an HTTP request and return the response body as text
+    # @param method [String] HTTP method (GET, POST, PUT, DELETE, PATCH, HEAD, OPTIONS)
+    # @param url [String] URL to request (can be pubky://, https://, or _pubky.*)
+    # @param body [String, nil] Optional request body
+    # @param headers [Hash, nil] Optional headers as a hash
+    # @return [String] Response body as text
+    def request(method, url, body: nil, headers: nil)
+      headers_json = headers ? JSON.generate(headers) : nil
+      body_ptr = to_cstr(body)
+      headers_ptr = to_cstr(headers_json)
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_http_client_request(@ptr, method.to_s.upcase, url, body_ptr, headers_ptr))
+    end
+
+    # Make an HTTP request and return the response body as bytes
+    # @param method [String] HTTP method
+    # @param url [String] URL to request
+    # @param body [String, nil] Optional request body as bytes
+    # @param headers [Hash, nil] Optional headers as a hash
+    # @return [String] Response body as bytes
+    def request_bytes(method, url, body: nil, headers: nil)
+      headers_json = headers ? JSON.generate(headers) : nil
+      headers_ptr = to_cstr(headers_json)
+      if body
+        body_ptr = FFI::MemoryPointer.new(:uint8, body.bytesize)
+        body_ptr.put_bytes(0, body)
+        PubkySdkFFI.handle_bytes_result(PubkySdkFFI.pubky_http_client_request_bytes(@ptr, method.to_s.upcase, url, body_ptr, body.bytesize, headers_ptr))
+      else
+        PubkySdkFFI.handle_bytes_result(PubkySdkFFI.pubky_http_client_request_bytes(@ptr, method.to_s.upcase, url, nil, 0, headers_ptr))
+      end
+    end
+
+    # Convenience methods
+    def get(url, headers: nil)
+      request('GET', url, headers: headers)
+    end
+
+    def post(url, body: nil, headers: nil)
+      request('POST', url, body: body, headers: headers)
+    end
+
+    def put(url, body: nil, headers: nil)
+      request('PUT', url, body: body, headers: headers)
+    end
+
+    def delete(url, headers: nil)
+      request('DELETE', url, headers: headers)
+    end
+
+    def patch(url, body: nil, headers: nil)
+      request('PATCH', url, body: body, headers: headers)
+    end
+  end
+
+  class Signer
+    attr_reader :ptr, :keypair
+
+    def initialize(ptr, keypair)
+      raise Error.new('Failed to create signer') if ptr.null?
+      @ptr = ptr
+      @keypair = keypair
+      ObjectSpace.define_finalizer(self, self.class.release(@ptr))
+    end
+
+    def self.release(ptr)
+      proc { PubkySdkFFI.pubky_signer_free(ptr) }
+    end
+
+    # Get public key
+    def public_key
+      PublicKey.new(PubkySdkFFI.pubky_signer_public_key(@ptr))
+    end
+
+    # Sign up at a homeserver
+    def signup(homeserver, token = nil)
+      session_ptr = PubkySdkFFI.pubky_signer_signup(@ptr, homeserver.ptr, token)
+      Session.new(session_ptr)
+    end
+
+    # Sign in (for returning users)
+    def signin
+      session_ptr = PubkySdkFFI.pubky_signer_signin(@ptr)
+      Session.new(session_ptr)
+    end
+
+    # Sign in blocking (waits for PKDNS publish)
+    def signin_blocking
+      session_ptr = PubkySdkFFI.pubky_signer_signin_blocking(@ptr)
+      Session.new(session_ptr)
+    end
+  end
+
+  class Session
+    attr_reader :ptr
+
+    def initialize(ptr)
+      raise Error.new('Failed to create session') if ptr.null?
+      @ptr = ptr
+      @freed = false
+      ObjectSpace.define_finalizer(self, self.class.release(@ptr))
+    end
+
+    def self.release(ptr)
+      proc { PubkySdkFFI.pubky_session_free(ptr) unless ptr.null? }
+    end
+
+    # Get public key
+    def public_key
+      PublicKey.new(PubkySdkFFI.pubky_session_public_key(@ptr))
+    end
+
+    # Get capabilities
+    def capabilities
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_session_capabilities(@ptr))
+    end
+
+    # Get session storage
+    def storage
+      SessionStorage.new(PubkySdkFFI.pubky_session_storage(@ptr))
+    end
+
+    # Sign out (invalidates the session)
+    def signout
+      result = PubkySdkFFI.pubky_session_signout(@ptr)
+      @freed = true
+      PubkySdkFFI.handle_result(result)
+    end
+
+    # Revalidate session
+    def revalidate
+      result = PubkySdkFFI.pubky_session_revalidate(@ptr)
+      PubkySdkFFI.handle_result(result)
+    end
+  end
+
+  class SessionStorage
+    attr_reader :ptr
+
+    def initialize(ptr)
+      raise Error.new('Failed to create session storage') if ptr.null?
+      @ptr = ptr
+      ObjectSpace.define_finalizer(self, self.class.release(@ptr))
+    end
+
+    def self.release(ptr)
+      proc { PubkySdkFFI.pubky_session_storage_free(ptr) }
+    end
+
+    # Get text from path
+    def get(path)
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_session_storage_get_text(@ptr, path))
+    end
+
+    # Get bytes from path
+    def get_bytes(path)
+      PubkySdkFFI.handle_bytes_result(PubkySdkFFI.pubky_session_storage_get_bytes(@ptr, path))
+    end
+
+    # Get JSON from path
+    def get_json(path)
+      json_str = PubkySdkFFI.handle_result(PubkySdkFFI.pubky_session_storage_get_json(@ptr, path))
+      JSON.parse(json_str)
+    end
+
+    # Put text at path
+    def put(path, body)
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_session_storage_put_text(@ptr, path, body))
+    end
+
+    # Put bytes at path
+    def put_bytes(path, body)
+      body_ptr = FFI::MemoryPointer.new(:uint8, body.bytesize)
+      body_ptr.put_bytes(0, body)
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_session_storage_put_bytes(@ptr, path, body_ptr, body.bytesize))
+    end
+
+    # Put JSON at path
+    def put_json(path, value)
+      json_str = value.is_a?(String) ? value : JSON.generate(value)
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_session_storage_put_json(@ptr, path, json_str))
+    end
+
+    # Delete path
+    def delete(path)
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_session_storage_delete(@ptr, path))
+    end
+
+    # Check if path exists
+    def exists?(path)
+      result = PubkySdkFFI.handle_result(PubkySdkFFI.pubky_session_storage_exists(@ptr, path))
+      result == 'true'
+    end
+
+    # List directory contents
+    def list(path, limit: 100)
+      json_str = PubkySdkFFI.handle_result(PubkySdkFFI.pubky_session_storage_list(@ptr, path, limit))
+      JSON.parse(json_str)
+    end
+  end
+
+  class PublicStorage
+    attr_reader :ptr
+
+    def initialize(ptr)
+      raise Error.new('Failed to create public storage') if ptr.null?
+      @ptr = ptr
+      ObjectSpace.define_finalizer(self, self.class.release(@ptr))
+    end
+
+    def self.release(ptr)
+      proc { PubkySdkFFI.pubky_public_storage_free(ptr) }
+    end
+
+    # Get text from address
+    def get(address)
+      PubkySdkFFI.handle_result(PubkySdkFFI.pubky_public_storage_get_text(@ptr, address))
+    end
+
+    # Get bytes from address
+    def get_bytes(address)
+      PubkySdkFFI.handle_bytes_result(PubkySdkFFI.pubky_public_storage_get_bytes(@ptr, address))
+    end
+
+    # Get JSON from address
+    def get_json(address)
+      json_str = PubkySdkFFI.handle_result(PubkySdkFFI.pubky_public_storage_get_json(@ptr, address))
+      JSON.parse(json_str)
+    end
+
+    # Check if address exists
+    def exists?(address)
+      result = PubkySdkFFI.handle_result(PubkySdkFFI.pubky_public_storage_exists(@ptr, address))
+      result == 'true'
+    end
+
+    # List directory contents
+    def list(address, limit: 100)
+      json_str = PubkySdkFFI.handle_result(PubkySdkFFI.pubky_public_storage_list(@ptr, address, limit))
+      JSON.parse(json_str)
+    end
+  end
+end
+```
+
+## Quick Start Examples
+
+### 1. Generate a Keypair
+
+```ruby
+# Generate a random keypair
+keypair = PubkySdkFFI::Keypair.random
+public_key = keypair.public_key
+
+puts "Public Key: #{public_key.z32}"
+
+# Save secret key for later
+secret_key = keypair.secret_key  # 32 bytes
+```
+
+### 2. Create from Secret Key
+
+```ruby
+# Restore keypair from secret key
+secret_key = "\x00" * 32  # Your 32-byte secret key
+keypair = PubkySdkFFI::Keypair.from_secret_key(secret_key)
+```
+
+### 3. Sign Up on a Homeserver
+
+```ruby
+# Create a Pubky client
+pubky = PubkySdkFFI::Client.new
+
+# Generate keypair and create signer
+keypair = PubkySdkFFI::Keypair.random
+signer = pubky.signer(keypair)
+
+# Sign up on a homeserver (identified by its public key)
+homeserver = PubkySdkFFI::PublicKey.from_z32("o4dksf...uyy")
+session = signer.signup(homeserver)
+
+puts "Signed up as: #{session.public_key.z32}"
+```
+
+### 4. Read/Write Data (Session Storage)
+
+```ruby
+# Get storage handle from session
+storage = session.storage
+
+# Write text data
+storage.put("/pub/my-cool-app/hello.txt", "hello world")
+
+# Read text data
+body = storage.get("/pub/my-cool-app/hello.txt")
+puts body  # => "hello world"
+
+# Write JSON data
+storage.put_json("/pub/my-cool-app/data.json", { name: "Alice", score: 100 })
+
+# Read JSON data
+data = storage.get_json("/pub/my-cool-app/data.json")
+puts data["name"]  # => "Alice"
+
+# Check if file exists
+if storage.exists?("/pub/my-cool-app/hello.txt")
+  puts "File exists!"
+end
+
+# List directory contents
+entries = storage.list("/pub/my-cool-app/", limit: 10)
+entries.each { |url| puts url }
+
+# Delete a file
+storage.delete("/pub/my-cool-app/hello.txt")
+```
+
+### 5. Public Read (Unauthenticated)
+
+```ruby
+pubky = PubkySdkFFI::Client.new
+public_storage = pubky.public_storage
+
+# Read another user's public file
+user_id = "operrr8wsbpr3ue9d4qj41ge1kcc6r7fdiy6o3ugjrrhi4y77rdo"
+address = "pubky#{user_id}/pub/my-cool-app/hello.txt"
+
+text = public_storage.get(address)
+puts text
+
+# List a user's public directory
+entries = public_storage.list("pubky#{user_id}/pub/my-cool-app/", limit: 10)
+entries.each { |url| puts url }
+```
+
+### 6. Sign In (Returning User)
+
+```ruby
+pubky = PubkySdkFFI::Client.new
+
+# Load keypair from saved secret key
+keypair = PubkySdkFFI::Keypair.from_secret_key(saved_secret_key)
+signer = pubky.signer(keypair)
+
+# Sign in
+session = signer.signin
+
+# Now you can use the storage
+storage = session.storage
+# ...
+```
+
+### 7. Recovery File
+
+```ruby
+# Create an encrypted recovery file
+keypair = PubkySdkFFI::Keypair.random
+recovery_data = keypair.create_recovery_file("my-secure-passphrase")
+
+# Save to file
+File.binwrite("alice.pkarr", recovery_data)
+
+# Later: restore keypair from recovery file
+recovery_data = File.binread("alice.pkarr")
+keypair = PubkySdkFFI::Keypair.from_recovery_file(recovery_data, "my-secure-passphrase")
+```
+
+### 8. Resolve Homeserver
+
+```ruby
+pubky = PubkySdkFFI::Client.new
+
+# Get another user's homeserver
+user = PubkySdkFFI::PublicKey.from_z32("operrr8wsbpr3ue9d4qj41ge1kcc6r7fdiy6o3ugjrrhi4y77rdo")
+homeserver = pubky.get_homeserver_of(user)
+
+if homeserver
+  puts "User's homeserver: #{homeserver.z32}"
+else
+  puts "Homeserver not found"
+end
+```
+
+### 9. Low-Level HTTP Requests
+
+Use the `HttpClient` class for direct HTTP requests to Pubky URLs, HTTPS URLs, or `_pubky.*` domains. This wraps the FFI function `pubky_http_client_request`:
+
+```ruby
+# Create HTTP client
+client = PubkySdkFFI::HttpClient.new
+
+# Make a GET request
+response = client.get("https://example.com")
+puts response
+
+# Make a request to a Pubky resource
+user_id = "operrr8wsbpr3ue9d4qj41ge1kcc6r7fdiy6o3ugjrrhi4y77rdo"
+profile = client.get("https://_pubky.#{user_id}/pub/pubky.app/profile.json")
+puts profile
+
+# POST request with body and headers
+response = client.post(
+  "https://api.example.com/data",
+  body: '{"key": "value"}',
+  headers: { "Content-Type" => "application/json" }
+)
+
+# PUT request
+client.put("https://example.com/resource", body: "updated content")
+
+# DELETE request
+client.delete("https://example.com/resource")
+
+# Generic request method for any HTTP method
+response = client.request("PATCH", "https://api.example.com/items/123",
+  body: '{"status": "updated"}',
+  headers: { "Content-Type" => "application/json" }
+)
+
+# For testnet
+testnet_client = PubkySdkFFI::HttpClient.new(testnet: true)
+```
+
+#### Direct FFI Usage (Advanced)
+
+For advanced use cases, you can call the FFI functions directly. Note that optional string parameters (body, headers) must be passed as `FFI::MemoryPointer` or `nil`:
+
+```ruby
+# Helper to convert string to C string pointer
+def to_cstr(str)
+  return nil if str.nil?
+  ptr = FFI::MemoryPointer.new(:char, str.bytesize + 1)
+  ptr.put_string(0, str)
+  ptr
+end
+
+# Create HTTP client via FFI
+client_ptr = PubkySdkFFI.pubky_http_client_new
+
+# Make a request using pubky_http_client_request
+# Arguments: client_ptr, method, url, body_ptr (or nil), headers_ptr (or nil)
+result = PubkySdkFFI.pubky_http_client_request(
+  client_ptr,
+  "GET",
+  "https://_pubky.#{user_id}/pub/pubky.app/profile.json",
+  nil,  # no body - pass nil for NULL pointer
+  nil   # no custom headers - pass nil for NULL pointer
+)
+
+if result[:code] == 0
+  puts result[:data].read_string
+  PubkySdkFFI.pubky_string_free(result[:data])
+else
+  puts "Error: #{result[:error].read_string}"
+  PubkySdkFFI.pubky_string_free(result[:error])
+end
+
+# POST with body and headers - convert strings to C string pointers
+body_ptr = to_cstr('{"key": "value"}')
+headers_ptr = to_cstr('{"Content-Type": "application/json", "Authorization": "Bearer token123"}')
+result = PubkySdkFFI.pubky_http_client_request(
+  client_ptr,
+  "POST",
+  "https://api.example.com/data",
+  body_ptr,
+  headers_ptr
+)
+
+# Clean up
+PubkySdkFFI.pubky_http_client_free(client_ptr)
+```
+
+## Rails Integration Examples
+
+### Service Object Pattern
+
+```ruby
+# app/services/pubky_service.rb
+class PubkyService
+  def initialize(testnet: Rails.env.development?)
+    @client = PubkySdkFFI::Client.new(testnet: testnet)
+  end
+
+  def create_user
+    keypair = PubkySdkFFI::Keypair.random
+    {
+      public_key: keypair.public_key.z32,
+      secret_key: keypair.secret_key
+    }
+  end
+
+  def sign_in(secret_key)
+    keypair = PubkySdkFFI::Keypair.from_secret_key(secret_key)
+    signer = @client.signer(keypair)
+    signer.signin
+  end
+
+  def get_public_file(user_id, path)
+    address = "pubky#{user_id}#{path}"
+    @client.public_storage.get(address)
+  rescue PubkySdkFFI::Error => e
+    Rails.logger.error("Pubky error: #{e.message}")
+    nil
+  end
+end
+```
+
+### Controller Example
+
+```ruby
+# app/controllers/pubky_controller.rb
+class PubkyController < ApplicationController
+  before_action :set_pubky_service
+
+  def read_public_file
+    user_id = params[:user_id]
+    path = params[:path]
+
+    content = @pubky.get_public_file(user_id, "/pub/#{path}")
+
+    if content
+      render plain: content
+    else
+      head :not_found
+    end
+  end
+
+  private
+
+  def set_pubky_service
+    @pubky = PubkyService.new
+  end
+end
+```
+
+### Background Job Example
+
+```ruby
+# app/jobs/pubky_sync_job.rb
+class PubkySyncJob < ApplicationJob
+  queue_as :default
+
+  def perform(user_id, path, content)
+    service = PubkyService.new
+    # Load user's secret key from secure storage
+    secret_key = CredentialStore.get_secret_key(user_id)
+
+    session = service.sign_in(secret_key)
+    session.storage.put(path, content)
+    session.signout
+  end
+end
+```
+
+## Thread Safety
+
+The Pubky FFI bindings use a global Tokio runtime for async operations. The runtime is initialized automatically on first use. For thread-safety in Rails:
+
+- Each `PubkySdkFFI::Client` instance can be safely shared across threads
+- `Session` and `Storage` objects should be created per-request
+- Use connection pools or create new clients as needed
+
+## Error Handling
+
+```ruby
+begin
+  storage.put("/pub/app/file.txt", "content")
+rescue PubkySdkFFI::Error => e
+  case e.code
+  when 1
+    # Request error (network/server)
+    Rails.logger.error("Network error: #{e.message}")
+  when 4
+    # Authentication error
+    Rails.logger.error("Auth error: #{e.message}")
+  else
+    Rails.logger.error("Pubky error (#{e.code}): #{e.message}")
+  end
+end
+```
+
+## Testing
+
+For testing, use the testnet mode:
+
+```ruby
+# spec/support/pubky_helper.rb
+RSpec.configure do |config|
+  config.before(:each, :pubky) do
+    @pubky = PubkySdkFFI::Client.new(testnet: true)
+  end
+end
+```
+
+```ruby
+# spec/services/pubky_service_spec.rb
+RSpec.describe PubkyService, :pubky do
+  it "creates and reads files" do
+    keypair = PubkySdkFFI::Keypair.random
+    signer = @pubky.signer(keypair)
+
+    # Note: This requires a running testnet
+    # Run: cargo run --package pubky-testnet
+    session = signer.signin
+    storage = session.storage
+
+    storage.put("/pub/test/hello.txt", "test content")
+    content = storage.get("/pub/test/hello.txt")
+
+    expect(content).to eq("test content")
+  end
+end
+```
+
+## See Also
+
+- [Pubky SDK README](../../README.md) - Main SDK documentation
+- [FFI README](./README.md) - General FFI documentation
+- [Pubky Core Examples](https://github.com/pubky/pubky-core/tree/main/examples) - More examples
+
+---
+
+**License:** MIT

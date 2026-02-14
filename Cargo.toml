@@ -2,6 +2,7 @@
 members = [
   "pubky-*",
   "pubky-sdk/bindings/js",
+  "pubky-sdk/bindings/ffi",
   "http-relay",
   "pkarr-republisher",
   "e2e", 
