@@ -3707,6 +3707,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "pubky-sdk-ffi"
+version = "0.6.0-rc.6"
+dependencies = [
+ "hex",
+ "libc",
+ "pkarr",
+ "pubky",
+ "pubky-common",
+ "serde_json",
+ "tokio",
+ "url",
+]
+
+[[package]]
 name = "pubky-testnet"
 version = "0.6.0"
 dependencies = [
