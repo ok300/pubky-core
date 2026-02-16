@@ -229,6 +229,8 @@ jobs:
 
       - name: Run the testnet
         working-directory: pubky-sdk/bindings/js/pkg
+        env:
+          RUSTFLAGS: "--cfg tokio_allow_from_blocking_fd"
         run: npm run testnet > testnet.log 2>&1 &
 
       - name: Wait for testnet homeserver
