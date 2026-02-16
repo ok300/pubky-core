@@ -77,7 +77,7 @@ impl HttpRelayBuilder {
 
 /// An implementation of _some_ of [Http relay spec](https://httprelay.io/).
 pub struct HttpRelay {
-    pub(crate) http_handle: Handle,
+    pub(crate) http_handle: Handle<SocketAddr>,
     http_address: SocketAddr,
 }
 
@@ -110,6 +110,7 @@ impl HttpRelay {
 
         tokio::spawn(async move {
             axum_server::from_tcp(http_listener)
+                .expect("Failed to create server from TCP listener")
                 .handle(http_handle.clone())
                 .serve(app.into_make_service())
                 .await
