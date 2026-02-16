@@ -54,11 +54,11 @@ web-sys = { version = "0.3.77", default-features = false, features = [
     "ServiceWorkerGlobalScope",
 ] }
 url.workspace = true
-getrandom = { version = "0.3.3", features = ["wasm_js"] }
-reqwest = { version = "0.12.12", default-features = false, features = [
+getrandom = { version = "0.4.1", features = ["wasm_js"] }
+reqwest = { version = "0.13.2", default-features = false, features = [
     "stream",
 ] }
-wasm-streams = "0.4"
+wasm-streams = "0.5"
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3"

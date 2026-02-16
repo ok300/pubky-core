@@ -13,12 +13,12 @@ categories = ["web-programming"]
 [dependencies]
 anyhow.workspace = true
 axum.workspace = true
-axum-server = "0.7.2"
-futures-util = "0.3.31"
+axum-server = "0.8.0"
+futures-util = "0.3.32"
 tokio = { version = "1.47.1", features = ["full"] }
 tracing.workspace = true
 url.workspace = true
 tower-http = { workspace = true, features = ["cors", "trace"] }
 
 [dev-dependencies]
-axum-test = "17.3.0"
+axum-test = "18.2.1"
