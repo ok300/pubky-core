@@ -7,7 +7,7 @@ async fn http_get_pubky() {
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
 
-    let client = testnet.client().unwrap();
+    let client = testnet.client().await.unwrap();
 
     let pubky_url = format!("https://{}/", server.public_key().z32());
     let response = client
@@ -24,7 +24,7 @@ async fn http_get_pubky() {
 async fn http_get_icann() {
     let testnet = build_full_testnet().await;
 
-    let client = testnet.client().unwrap();
+    let client = testnet.client().await.unwrap();
 
     let icann_url = "https://google.com/".to_string();
 

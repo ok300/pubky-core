@@ -18,7 +18,7 @@ use pubky_testnet::pubky::errors::{Error, RequestError};
 async fn basic_authn() {
     let testnet = build_full_testnet().await;
     let homeserver = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     let signer = pubky.signer(Keypair::random());
 
@@ -42,7 +42,7 @@ async fn disabled_user() {
         .unwrap();
 
     let server = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     // Create a brand-new user and session
     let signer = pubky.signer(Keypair::random());
@@ -114,7 +114,7 @@ async fn disabled_user() {
 async fn authz() {
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     let http_relay_url = testnet.http_relay().local_link_url();
 
@@ -192,7 +192,7 @@ async fn authz() {
 async fn signup_authz() {
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     let http_relay_url = testnet.http_relay().local_link_url();
 
@@ -279,7 +279,7 @@ async fn signup_authz() {
 async fn persist_and_restore_info() {
     let testnet = build_full_testnet().await;
     let homeserver = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     // Create user and session-bound agent
     let signer = pubky.signer(Keypair::random());
@@ -318,7 +318,7 @@ async fn persist_and_restore_info() {
 async fn multiple_users() {
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     // Two independent users
     let alice = pubky.signer(Keypair::random());
@@ -342,7 +342,7 @@ async fn multiple_users() {
 async fn authz_timeout_reconnect() {
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     let http_relay_url = testnet.http_relay().local_link_url();
 
@@ -421,7 +421,7 @@ async fn signup_with_token() {
         .unwrap();
 
     let server = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     let signer = pubky.signer(Keypair::random());
     let signer2 = pubky.signer(Keypair::random());
@@ -487,8 +487,8 @@ async fn republish_if_stale_triggers_timestamp_bump() {
 
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
-    let client = testnet.client().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
+    let client = testnet.client().await.unwrap();
 
     // Sign up a brand-new user (initial publish happens on signup)
     let signer = pubky.signer(Keypair::random());
@@ -534,8 +534,8 @@ async fn conditional_publish_skips_when_fresh() {
 
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
-    let client = testnet.client().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
+    let client = testnet.client().await.unwrap();
 
     let signer = pubky.signer(Keypair::random());
     let pubky = signer.public_key().clone();
@@ -573,7 +573,7 @@ async fn test_republish_homeserver() {
     // Setup testnet + a homeserver.
     let mut testnet = Testnet::new().await.unwrap();
     let max_record_age = Duration::from_secs(5);
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
     let server = testnet.create_homeserver().await.unwrap();
 
     // Create user and publish initial record via signup.

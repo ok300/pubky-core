@@ -13,7 +13,7 @@ use rand::seq::SliceRandom;
 async fn put_get_delete() {
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     let signer = pubky.signer(Keypair::random());
 
@@ -89,7 +89,7 @@ use serde::{Deserialize, Serialize};
 async fn put_then_get_json_roundtrip() {
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     let signer = pubky.signer(Keypair::random());
 
@@ -146,7 +146,7 @@ async fn put_then_get_json_roundtrip() {
 async fn put_quota_applied() {
     // Start a test homeserver with 1 MB user data limit
     let mut testnet = Testnet::new().await.unwrap();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     let mut mock_dir = MockDataDir::test();
     mock_dir.config_toml.general.user_storage_quota_mb = 1; // 1 MB
@@ -220,7 +220,7 @@ async fn put_quota_applied() {
 async fn unauthorized_put_delete() {
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     // Owner user
     let owner = pubky.signer(Keypair::random());
@@ -287,7 +287,7 @@ async fn unauthorized_put_delete() {
 async fn list_deep() {
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     // Owner user
     let owner = pubky.signer(Keypair::random());
@@ -423,7 +423,7 @@ async fn list_deep() {
 async fn list_shallow() {
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     // Owner user
     let owner = pubky.signer(Keypair::random());
@@ -564,7 +564,7 @@ async fn list_shallow() {
 async fn list_events() {
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     // Create a user/session
     let signer = pubky.signer(Keypair::random());
@@ -666,7 +666,7 @@ async fn list_events() {
 async fn read_after_event() {
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     // User + session
     let signer = pubky.signer(Keypair::random());
@@ -719,7 +719,7 @@ async fn read_after_event() {
 async fn dont_delete_shared_blobs() {
     let testnet = build_full_testnet().await;
     let homeserver = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     // Two independent users
     let u1 = pubky.signer(Keypair::random());
@@ -777,7 +777,7 @@ async fn dont_delete_shared_blobs() {
 async fn stream() {
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     let signer = pubky.signer(Keypair::random());
     let session = signer.signup(&server.public_key(), None).await.unwrap();
@@ -814,7 +814,7 @@ async fn stream() {
 async fn write_same_path_separate_users() {
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     let signer_a = pubky.signer(Keypair::random());
     let session_a = signer_a.signup(&server.public_key(), None).await.unwrap();
