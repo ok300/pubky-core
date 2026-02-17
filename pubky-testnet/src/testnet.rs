@@ -32,7 +32,11 @@ pub struct Testnet {
 impl Testnet {
     /// Run a new testnet with a local DHT.
     pub async fn new() -> Result<Self> {
-        let dht = pkarr::mainline::Testnet::new(2)?;
+        // Wrap blocking DHT creation in spawn_blocking to avoid blocking tokio runtime
+        // mainline v6.1.1 uses blocking sockets which can block the runtime's worker threads
+        let dht = tokio::task::spawn_blocking(|| pkarr::mainline::Testnet::new(2))
+            .await
+            .expect("spawn_blocking panicked")?;
         let testnet = Self {
             dht,
             pkarr_relays: vec![],
@@ -52,7 +56,11 @@ impl Testnet {
     pub async fn new_with_custom_postgres(
         postgres_connection_string: ConnectionString,
     ) -> Result<Self> {
-        let dht = pkarr::mainline::Testnet::new(2)?;
+        // Wrap blocking DHT creation in spawn_blocking to avoid blocking tokio runtime
+        // mainline v6.1.1 uses blocking sockets which can block the runtime's worker threads
+        let dht = tokio::task::spawn_blocking(|| pkarr::mainline::Testnet::new(2))
+            .await
+            .expect("spawn_blocking panicked")?;
         let testnet: Testnet = Self {
             dht,
             pkarr_relays: vec![],
@@ -207,15 +215,20 @@ impl Testnet {
     /// Creates a [`pubky::PubkyHttpClient`] pre-configured to use this test network.
     ///
     /// This is a convenience method that builds a client from `Self::client_builder`.
-    pub fn client(&self) -> Result<pubky::PubkyHttpClient, pubky::BuildError> {
-        self.client_builder().build()
+    pub async fn client(&self) -> Result<pubky::PubkyHttpClient, pubky::BuildError> {
+        let builder = self.client_builder();
+        // Wrap blocking client build in spawn_blocking to avoid blocking tokio runtime
+        // The pkarr client build may create a mainline DHT with blocking sockets
+        tokio::task::spawn_blocking(move || builder.build())
+            .await
+            .expect("spawn_blocking panicked")
     }
 
     /// Creates a [`pubky::Pubky`] SDK facade pre-configured to use this test network.
     ///
     /// This is a convenience method that builds a client from `Self::client_builder`.
-    pub fn sdk(&self) -> Result<Pubky, pubky::BuildError> {
-        Ok(Pubky::with_client(self.client()?))
+    pub async fn sdk(&self) -> Result<Pubky, pubky::BuildError> {
+        Ok(Pubky::with_client(self.client().await?))
     }
 
     /// Create a [pkarr::ClientBuilder] and configure it to use this local test network.
@@ -268,7 +281,7 @@ mod test {
         testnet.create_homeserver().await.unwrap();
 
         let hs = testnet.homeservers.first().unwrap();
-        let sdk = testnet.sdk().unwrap();
+        let sdk = testnet.sdk().await.unwrap();
 
         let signer = sdk.signer(Keypair::random());
 
@@ -291,7 +304,11 @@ mod test {
         let hs_pubky = testnet.create_homeserver().await.unwrap().public_key();
 
         // Make sure the pkarr packet of the hs is resolvable.
-        let pkarr_client = testnet.pkarr_client_builder().build().unwrap();
+        let builder = testnet.pkarr_client_builder();
+        let pkarr_client = tokio::task::spawn_blocking(move || builder.build())
+            .await
+            .expect("spawn_blocking panicked")
+            .unwrap();
         let _packet = pkarr_client.resolve(&hs_pubky).await.unwrap();
 
         // Make sure the pkarr can resolve the hs_pubky.
@@ -314,13 +331,22 @@ mod test {
         let keypair = Keypair::random();
 
         // Publish packet on the DHT without using the relay.
-        let client = testnet.pkarr_client_builder().build().unwrap();
+        let builder = testnet.pkarr_client_builder();
+        let client = tokio::task::spawn_blocking(move || builder.build())
+            .await
+            .expect("spawn_blocking panicked")
+            .unwrap();
         let signed = pkarr::SignedPacket::builder().sign(&keypair).unwrap();
         client.publish(&signed, None).await.unwrap();
 
         // Resolve packet with a new client to prevent caching
         // Only use the DHT, no relays
-        let client = testnet.pkarr_client_builder().no_relays().build().unwrap();
+        let mut builder = testnet.pkarr_client_builder();
+        builder.no_relays();
+        let client = tokio::task::spawn_blocking(move || builder.build())
+            .await
+            .expect("spawn_blocking panicked")
+            .unwrap();
         let packet = client.resolve(&keypair.public_key()).await;
         assert!(
             packet.is_some(),
