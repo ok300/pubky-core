@@ -261,18 +261,37 @@ mod test {
 
     /// Test that a user can signup in the testnet.
     /// This is an e2e tests to check if everything is correct.
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     #[crate::test]
     async fn test_signup() {
+        eprintln!("=== Step 1: Creating testnet ===");
         let mut testnet = Testnet::new().await.unwrap();
+        eprintln!("=== Step 2: Creating homeserver ===");
         testnet.create_homeserver().await.unwrap();
+        eprintln!("=== Step 3: Homeserver created ===");
 
         let hs = testnet.homeservers.first().unwrap();
+        let hs_pubkey = hs.public_key();
+        eprintln!("=== Step 3a: HS pubkey: {} ===", hs_pubkey);
+
+        // Test pkarr resolution directly
+        eprintln!("=== Step 3b: Testing pkarr resolution ===");
+        let pkarr_client = testnet.pkarr_client_builder().build().unwrap();
+        let packet = pkarr_client.resolve(&hs_pubkey).await;
+        eprintln!("=== Step 3c: pkarr resolve result: {:?} ===", packet.is_some());
+
         let sdk = testnet.sdk().unwrap();
+        eprintln!("=== Step 3d: SDK created ===");
+
+        // Test resolving through SDK's pkarr client
+        let sdk_pkarr_result = sdk.client().pkarr().resolve(&hs_pubkey).await;
+        eprintln!("=== Step 3e: SDK pkarr resolve result: {:?} ===", sdk_pkarr_result.is_some());
 
         let signer = sdk.signer(Keypair::random());
 
-        let session = signer.signup(&hs.public_key(), None).await.unwrap();
+        eprintln!("=== Step 4: Calling signup ===");
+        let session = signer.signup(&hs_pubkey, None).await.unwrap();
+        eprintln!("=== Step 5: Signup done ===");
         assert_eq!(session.info().public_key(), &signer.public_key());
     }
 
