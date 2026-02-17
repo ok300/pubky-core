@@ -158,7 +158,7 @@ impl StaticTestnet {
             builder.build()
         })
         .await
-        .expect("spawn_blocking panicked")?;
+        .expect("Bootstrap node DHT creation task panicked")?;
         Ok(Some(dht))
     }
 

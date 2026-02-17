@@ -36,7 +36,7 @@ impl Testnet {
         // mainline v6.1.1 uses blocking sockets which can block the runtime's worker threads
         let dht = tokio::task::spawn_blocking(|| pkarr::mainline::Testnet::new(2))
             .await
-            .expect("spawn_blocking panicked")?;
+            .expect("DHT creation task panicked")?;
         let testnet = Self {
             dht,
             pkarr_relays: vec![],
@@ -60,7 +60,7 @@ impl Testnet {
         // mainline v6.1.1 uses blocking sockets which can block the runtime's worker threads
         let dht = tokio::task::spawn_blocking(|| pkarr::mainline::Testnet::new(2))
             .await
-            .expect("spawn_blocking panicked")?;
+            .expect("DHT creation task panicked")?;
         let testnet: Testnet = Self {
             dht,
             pkarr_relays: vec![],
@@ -221,7 +221,7 @@ impl Testnet {
         // The pkarr client build may create a mainline DHT with blocking sockets
         tokio::task::spawn_blocking(move || builder.build())
             .await
-            .expect("spawn_blocking panicked")
+            .expect("Client build task panicked")
     }
 
     /// Creates a [`pubky::Pubky`] SDK facade pre-configured to use this test network.
@@ -307,7 +307,7 @@ mod test {
         let builder = testnet.pkarr_client_builder();
         let pkarr_client = tokio::task::spawn_blocking(move || builder.build())
             .await
-            .expect("spawn_blocking panicked")
+            .expect("Pkarr client build task panicked")
             .unwrap();
         let _packet = pkarr_client.resolve(&hs_pubky).await.unwrap();
 
@@ -334,7 +334,7 @@ mod test {
         let builder = testnet.pkarr_client_builder();
         let client = tokio::task::spawn_blocking(move || builder.build())
             .await
-            .expect("spawn_blocking panicked")
+            .expect("Pkarr client build task panicked")
             .unwrap();
         let signed = pkarr::SignedPacket::builder().sign(&keypair).unwrap();
         client.publish(&signed, None).await.unwrap();
@@ -345,7 +345,7 @@ mod test {
         builder.no_relays();
         let client = tokio::task::spawn_blocking(move || builder.build())
             .await
-            .expect("spawn_blocking panicked")
+            .expect("Pkarr client build task panicked")
             .unwrap();
         let packet = client.resolve(&keypair.public_key()).await;
         assert!(
