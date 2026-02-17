@@ -173,7 +173,7 @@ mod tests {
     }
 
     #[test]
-    fn classify_host_fallthrough_invalid_z32_after_underscore() {
+    fn classify_host_pubky_with_invalid_key_after_prefix() {
         // Invalid z32 after _pubky. prefix falls through to Pubky (default)
         // This is testing the case where the ResolvedPubky branch checks fail
         assert_eq!(classify_host("_pubky.invalid"), HostKind::Pubky);
@@ -216,14 +216,20 @@ mod tests {
     }
 
     #[test]
-    fn classify_host_edge_cases() {
+    fn classify_host_empty_string() {
         // Empty string: try_from_z32("") fails, so the else branch returns ICANN
         assert_eq!(classify_host(""), HostKind::Icann);
-        
+    }
+
+    #[test]
+    fn classify_host_prefix_without_key() {
         // Just the prefix without key: _pubky. branch checks fail, falls through to Pubky
         // This tests the ResolvedPubky branch failure case
         assert_eq!(classify_host("_pubky."), HostKind::Pubky);
-        
+    }
+
+    #[test]
+    fn classify_host_localhost_and_ips() {
         // localhost and IP addresses: try_from_z32 will fail, so ICANN
         assert_eq!(classify_host("localhost"), HostKind::Icann);
         assert_eq!(classify_host("127.0.0.1"), HostKind::Icann);
