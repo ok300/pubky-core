@@ -173,9 +173,10 @@ mod tests {
     }
 
     #[test]
-    fn classify_host_pubky_with_invalid_key_after_prefix() {
-        // Invalid z32 after _pubky. prefix falls through to Pubky (default)
-        // This is testing the case where the ResolvedPubky branch checks fail
+    fn classify_host_pubky_fallback_invalid_after_prefix() {
+        // When _pubky. prefix is present but the key is invalid (neither pubky-prefixed nor valid z32),
+        // the function falls through to the default Pubky classification.
+        // This is the intended fallback behavior of classify_host.
         assert_eq!(classify_host("_pubky.invalid"), HostKind::Pubky);
         assert_eq!(classify_host("_pubky.example.com"), HostKind::Pubky);
     }
@@ -223,8 +224,9 @@ mod tests {
 
     #[test]
     fn classify_host_prefix_without_key() {
-        // Just the prefix without key: _pubky. branch checks fail, falls through to Pubky
-        // This tests the ResolvedPubky branch failure case
+        // When only _pubky. prefix is present without a key, the ResolvedPubky checks fail
+        // and the function falls through to the default Pubky classification.
+        // This is consistent with the fallback behavior for malformed _pubky. hosts.
         assert_eq!(classify_host("_pubky."), HostKind::Pubky);
     }
 
