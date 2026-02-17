@@ -264,7 +264,7 @@ Spin up an ephemeral testnet (DHT + homeserver + relay) and run your tests fully
 
 let testnet = EphemeralTestnet::builder().build().await.unwrap();
 let homeserver  = testnet.homeserver_app();
-let pubky = testnet.sdk()?;
+let pubky = testnet.sdk().await?;
 
 let signer = pubky.signer(Keypair::random());
 let session  = signer.signup(&homeserver.public_key().into(), None).await?;

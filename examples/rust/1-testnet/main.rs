@@ -7,7 +7,7 @@ async fn main() -> anyhow::Result<()> {
     let homeserver = testnet.homeserver_app();
 
     // Intantiate a Pubky SDK wrapper that uses this testnet's preconfigured client for transport
-    let pubky = testnet.sdk()?;
+    let pubky = testnet.sdk().await?;
 
     // Create a random signer and sign up
     let session = pubky

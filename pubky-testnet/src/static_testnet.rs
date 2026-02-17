@@ -43,6 +43,7 @@ impl StaticTestnet {
     pub async fn new(config_path: Option<PathBuf>) -> anyhow::Result<Self> {
         let testnet = Testnet::new().await?;
         let fixed_boostrap = Self::run_fixed_boostrap_node(&testnet.dht.bootstrap)
+            .await
             .map_err(|e| anyhow::anyhow!("Failed to run bootstrap node on port 6881: {}", e))?;
 
         let mut testnet = Self {
@@ -81,15 +82,15 @@ impl StaticTestnet {
     }
 
     /// Creates a [`pubky::PubkyHttpClient`] pre-configured to use this test network.
-    pub fn client(&self) -> Result<pubky::PubkyHttpClient, pubky::BuildError> {
-        self.testnet.client()
+    pub async fn client(&self) -> Result<pubky::PubkyHttpClient, pubky::BuildError> {
+        self.testnet.client().await
     }
 
     /// Creates a [`pubky::Pubky`] SDK facade pre-configured to use this test network.
     ///
     /// This is a convenience method that builds a client from `Self::client_builder`.
-    pub fn sdk(&self) -> Result<Pubky, pubky::BuildError> {
-        self.testnet.sdk()
+    pub async fn sdk(&self) -> Result<Pubky, pubky::BuildError> {
+        self.testnet.sdk().await
     }
 
     /// Create a new pkarr client builder.
@@ -138,7 +139,7 @@ impl StaticTestnet {
 
     /// Create a fixed bootstrap node on port 6881 if it is not already running.
     /// If it's already running, return None.
-    fn run_fixed_boostrap_node(
+    async fn run_fixed_boostrap_node(
         other_bootstrap_nodes: &[String],
     ) -> anyhow::Result<Option<pkarr::mainline::Dht>> {
         if other_bootstrap_nodes
@@ -147,13 +148,17 @@ impl StaticTestnet {
         {
             return Ok(None);
         }
-
-        let mut builder = pkarr::mainline::Dht::builder();
-        let dht = builder
-            .port(6881)
-            .bootstrap(other_bootstrap_nodes)
-            .server_mode()
-            .build()?;
+        // Clone the bootstrap nodes to move into the blocking task
+        let bootstrap_nodes = other_bootstrap_nodes.to_vec();
+        // Wrap blocking DHT creation in spawn_blocking to avoid blocking tokio runtime
+        // mainline v6.1.1 uses blocking sockets which can block the runtime's worker threads
+        let dht = tokio::task::spawn_blocking(move || {
+            let mut builder = pkarr::mainline::Dht::builder();
+            builder.port(6881).bootstrap(&bootstrap_nodes).server_mode();
+            builder.build()
+        })
+        .await
+        .expect("Bootstrap node DHT creation task panicked")?;
         Ok(Some(dht))
     }
 
