@@ -148,3 +148,83 @@ impl PubkyHttpClient {
         self.http.request(method, url_str)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::Keypair;
+
+    #[test]
+    fn classify_host_resolved_pubky() {
+        // Valid z32 key after _pubky. prefix
+        let kp = Keypair::random();
+        let z32 = kp.public_key().z32();
+        let host = format!("_pubky.{}", z32);
+        assert_eq!(classify_host(&host), HostKind::ResolvedPubky);
+    }
+
+    #[test]
+    fn classify_host_icann_pubky_prefixed_after_underscore() {
+        // pubky-prefixed key after _pubky. prefix should be ICANN
+        let kp = Keypair::random();
+        let pubky_prefixed = kp.public_key().to_string(); // Returns "pubky<z32>"
+        let host = format!("_pubky.{}", pubky_prefixed);
+        assert_eq!(classify_host(&host), HostKind::Icann);
+    }
+
+    #[test]
+    fn classify_host_pubky_invalid_z32_after_underscore() {
+        // Invalid z32 after _pubky. prefix falls through to Pubky (default)
+        assert_eq!(classify_host("_pubky.invalid"), HostKind::Pubky);
+        assert_eq!(classify_host("_pubky.example.com"), HostKind::Pubky);
+    }
+
+    #[test]
+    fn classify_host_pubky_raw_z32() {
+        // Raw z32 key without any prefix
+        let kp = Keypair::random();
+        let z32 = kp.public_key().z32();
+        assert_eq!(classify_host(&z32), HostKind::Pubky);
+    }
+
+    #[test]
+    fn classify_host_icann_pubky_prefixed() {
+        // pubky-prefixed key without _pubky. prefix should be ICANN
+        let kp = Keypair::random();
+        let pubky_prefixed = kp.public_key().to_string(); // Returns "pubky<z32>"
+        assert_eq!(classify_host(&pubky_prefixed), HostKind::Icann);
+    }
+
+    #[test]
+    fn classify_host_icann_regular_domain() {
+        // Regular domain names should be ICANN
+        assert_eq!(classify_host("example.com"), HostKind::Icann);
+        assert_eq!(classify_host("www.example.com"), HostKind::Icann);
+        assert_eq!(classify_host("subdomain.example.org"), HostKind::Icann);
+    }
+
+    #[test]
+    fn classify_host_icann_invalid_z32() {
+        // Invalid z32 keys (wrong length, invalid chars) should be ICANN
+        assert_eq!(classify_host("invalid"), HostKind::Icann);
+        assert_eq!(classify_host("tooshort"), HostKind::Icann);
+        assert_eq!(
+            classify_host("thisiswaytoolongtobeavalidz32keyitshouldbefiftytwocharacters"),
+            HostKind::Icann
+        );
+    }
+
+    #[test]
+    fn classify_host_edge_cases() {
+        // Empty string falls through to Pubky (try_from_z32("") is err, but logic falls through)
+        // Looking at the logic: empty string -> else branch -> is_pubky_prefixed(false) OR try_from_z32(err=true) -> ICANN
+        assert_eq!(classify_host(""), HostKind::Icann);
+        
+        // Just the prefix without key falls through to Pubky (default)
+        assert_eq!(classify_host("_pubky."), HostKind::Pubky);
+        
+        // localhost and IP addresses - try_from_z32 will fail, so ICANN
+        assert_eq!(classify_host("localhost"), HostKind::Icann);
+        assert_eq!(classify_host("127.0.0.1"), HostKind::Icann);
+    }
+}
