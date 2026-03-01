@@ -77,7 +77,7 @@ async fn metrics_comprehensive() {
         (metrics_url, public_key, public_key_z32)
     };
 
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     // 1. Test basic endpoint accessibility and Prometheus format
     let response = pubky

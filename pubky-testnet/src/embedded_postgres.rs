@@ -104,7 +104,7 @@ mod tests {
         let _ = testnet.http_relay();
 
         // Test user operations
-        let pubky = testnet.sdk().expect("Failed to create SDK");
+        let pubky = testnet.sdk().await.expect("Failed to create SDK");
         let keypair = Keypair::random();
         let signer = pubky.signer(keypair);
 

@@ -323,15 +323,15 @@ impl EphemeralTestnet {
     }
 
     /// Creates a [`pubky::PubkyHttpClient`] pre-configured to use this test network.
-    pub fn client(&self) -> Result<pubky::PubkyHttpClient, pubky::BuildError> {
-        self.testnet.client()
+    pub async fn client(&self) -> Result<pubky::PubkyHttpClient, pubky::BuildError> {
+        self.testnet.client().await
     }
 
     /// Creates a [`pubky::Pubky`] SDK facade pre-configured to use this test network.
     ///
     /// This is a convenience method that builds a client from `Self::client_builder`.
-    pub fn sdk(&self) -> Result<Pubky, pubky::BuildError> {
-        self.testnet.sdk()
+    pub async fn sdk(&self) -> Result<Pubky, pubky::BuildError> {
+        self.testnet.sdk().await
     }
 
     /// Create a new pkarr client builder.

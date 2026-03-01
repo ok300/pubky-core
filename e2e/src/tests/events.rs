@@ -20,7 +20,7 @@ async fn events_stream_basic_modes() {
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
     let server_host = server.public_key().z32();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     // Create one user with 250 events - reuse for all subtests
     let keypair = Keypair::random();
@@ -592,7 +592,7 @@ async fn events_stream_multiple_users() {
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
     let server_host = server.public_key().z32();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     let keypair1 = Keypair::random();
     let keypair2 = Keypair::random();
@@ -806,7 +806,7 @@ async fn events_stream_validation_errors() {
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
     let server_host = server.public_key().z32();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     let keypair1 = Keypair::random();
     let keypair2 = Keypair::random();
@@ -1095,7 +1095,7 @@ async fn events_stream_path_filter() {
 
     let testnet = build_full_testnet().await;
     let server = testnet.homeserver_app();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
     let server_host = server.public_key().z32();
 
     // Create 2 users upfront with diverse directory structures

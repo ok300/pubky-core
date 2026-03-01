@@ -15,7 +15,7 @@ use pubky_testnet::{
 #[pubky_testnet::test]
 async fn test_limit_signin_get_session() {
     let mut testnet = Testnet::new().await.unwrap();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     let mut cfg = ConfigToml::default_test_config();
     cfg.drive.rate_limits = vec![
@@ -75,7 +75,7 @@ async fn test_limit_signin_get_session() {
 #[pubky_testnet::test]
 async fn test_limit_signin_get_session_whitelist() {
     let mut testnet = Testnet::new().await.unwrap();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     // Pre-generate the whitelisted user (we need their pubkey in the config)
     let whitelisted_signer = pubky.signer(Keypair::random());
@@ -131,7 +131,7 @@ async fn test_limit_signin_get_session_whitelist() {
 #[pubky_testnet::test]
 async fn test_limit_events() {
     let mut testnet = Testnet::new().await.unwrap();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
     let client = pubky.client();
 
     // Rate-limit GET /events/ by IP
@@ -163,7 +163,7 @@ async fn test_limit_events() {
 #[pubky_testnet::test]
 async fn test_limit_upload() {
     let mut testnet = Testnet::new().await.unwrap();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     let mut cfg = ConfigToml::default_test_config();
     cfg.drive.rate_limits = vec![PathLimit::new(
@@ -205,7 +205,7 @@ async fn test_limit_upload() {
 async fn test_concurrent_write_read() {
     // --- homeserver with per-user throttling on PUT/GET under /pub/**
     let mut testnet = Testnet::new().await.unwrap();
-    let pubky = testnet.sdk().unwrap();
+    let pubky = testnet.sdk().await.unwrap();
 
     let mut cfg = ConfigToml::default_test_config();
     cfg.drive.rate_limits = vec![
