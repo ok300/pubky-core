@@ -18,18 +18,18 @@ const REPLACEMENT_COOLDOWN: Duration = Duration::from_secs(1);
 /// The local listener is unavailable, so accepting a private long-lived stream
 /// could miss an already-committed revocation.
 #[derive(Debug)]
-pub(crate) struct AuthRevocationUnavailable;
+pub(crate) struct RevocationUnavailable;
 
 type RevocationReceiver = broadcast::Receiver<AuthRevocation>;
-type SubscriptionResult = Result<RevocationReceiver, AuthRevocationUnavailable>;
+type SubscriptionResult = Result<RevocationReceiver, RevocationUnavailable>;
 
-/// Local fan-out service for committed authentication revocations.
+/// Local fan-out for committed authentication revocations.
 #[derive(Clone, Debug)]
-pub(crate) struct AuthRevocationService {
+pub(crate) struct RevocationListener {
     supervisor: Arc<Mutex<Supervisor>>,
 }
 
-impl AuthRevocationService {
+impl RevocationListener {
     /// Start the supervisor with a listener already receiving, so the app never
     /// starts serving private streams without its revocation feed.
     pub(crate) async fn start(pool: &PgPool) -> Result<Self, sqlx::Error> {
@@ -89,14 +89,14 @@ impl Supervisor {
         }
     }
 
-    async fn replace(&mut self) -> Result<(), AuthRevocationUnavailable> {
+    async fn replace(&mut self) -> Result<(), RevocationUnavailable> {
         if !self.replacement_cooldown.try_start(Instant::now()) {
-            return Err(AuthRevocationUnavailable);
+            return Err(RevocationUnavailable);
         }
 
         let replacement = ListenerActor::spawn(&self.pool).await.map_err(|error| {
             tracing::error!(%error, "failed to start the auth revocation listener");
-            AuthRevocationUnavailable
+            RevocationUnavailable
         })?;
         tracing::info!("started a replacement auth revocation listener");
         self.actor = Some(replacement);
@@ -265,10 +265,10 @@ mod tests {
     #[pubky_test_utils::test]
     async fn listeners_on_two_instances_receive_the_same_revocation() {
         let db = SqlDb::test().await;
-        let service_a = AuthRevocationService::start(db.pool()).await.unwrap();
-        let service_b = AuthRevocationService::start(db.pool()).await.unwrap();
-        let mut receiver_a = service_a.subscribe().await.unwrap();
-        let mut receiver_b = service_b.subscribe().await.unwrap();
+        let listener_a = RevocationListener::start(db.pool()).await.unwrap();
+        let listener_b = RevocationListener::start(db.pool()).await.unwrap();
+        let mut receiver_a = listener_a.subscribe().await.unwrap();
+        let mut receiver_b = listener_b.subscribe().await.unwrap();
 
         notify_cookie_revocation(db.pool(), 42).await;
 
@@ -286,8 +286,8 @@ mod tests {
     #[pubky_test_utils::test]
     async fn a_lost_connection_closes_private_streams_until_a_replacement_listener_takes_over() {
         let db = SqlDb::test().await;
-        let service = AuthRevocationService::start(db.pool()).await.unwrap();
-        let mut orphaned = service.subscribe().await.unwrap();
+        let listener = RevocationListener::start(db.pool()).await.unwrap();
+        let mut orphaned = listener.subscribe().await.unwrap();
 
         let terminated: bool = sqlx::query_scalar("SELECT pg_terminate_backend($1)")
             .bind(listener_backend_pid(db.pool()).await)
@@ -301,7 +301,7 @@ mod tests {
 
         expect_closed(&mut orphaned).await;
 
-        let mut receiver = service
+        let mut receiver = listener
             .subscribe()
             .await
             .expect("a later subscription should start a replacement listener");
@@ -317,8 +317,8 @@ mod tests {
     #[pubky_test_utils::test]
     async fn an_invalid_notification_payload_closes_private_streams() {
         let db = SqlDb::test().await;
-        let service = AuthRevocationService::start(db.pool()).await.unwrap();
-        let mut receiver = service.subscribe().await.unwrap();
+        let listener = RevocationListener::start(db.pool()).await.unwrap();
+        let mut receiver = listener.subscribe().await.unwrap();
 
         notify(db.pool(), "not-an-auth-revocation").await;
 
@@ -329,11 +329,11 @@ mod tests {
     #[pubky_test_utils::test]
     async fn dropping_the_last_service_clone_releases_the_postgres_listener() {
         let db = SqlDb::test().await;
-        let service = AuthRevocationService::start(db.pool()).await.unwrap();
-        let spare = service.clone();
+        let listener = RevocationListener::start(db.pool()).await.unwrap();
+        let spare = listener.clone();
         let pid = listener_backend_pid(db.pool()).await;
 
-        drop(service);
+        drop(listener);
         let mut receiver = spare
             .subscribe()
             .await
