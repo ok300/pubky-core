@@ -1,13 +1,13 @@
 use dav_server::{fakels::FakeLs, DavHandler};
 use dav_server_opendalfs::OpendalFs;
 
-use crate::data_directory::DefaultQuotasToml;
 use crate::observability::Metrics;
 use crate::persistence::{
     files::{events::EventsService, FileService},
     sql::SqlDb,
 };
 use crate::services::user_service::UserService;
+use crate::shared::quota::DefaultQuotasToml;
 use crate::ConfigToml;
 
 #[derive(Clone, Default)]

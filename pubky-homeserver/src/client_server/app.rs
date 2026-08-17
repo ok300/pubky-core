@@ -269,7 +269,7 @@ mod tests {
     use crate::{
         app_context::AppContext,
         client_server::ClientServer,
-        quota_config::{GlobPattern, HttpMethod, LimitKeyType, PathLimit},
+        shared::quota::{GlobPattern, HttpMethod, LimitKeyType, PathLimit},
         ConfigToml, MockDataDir,
     };
 

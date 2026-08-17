@@ -193,10 +193,9 @@ mod tests {
     use base64::Engine;
     use pubky_common::crypto::Keypair;
 
-    use crate::data_directory::quota_config::BandwidthQuota;
     use crate::persistence::files::FileService;
     use crate::persistence::sql::signup_code::{SignupCode, SignupCodeRepository};
-    use crate::shared::user_quota::UserQuota;
+    use crate::shared::quota::{BandwidthQuota, UserQuota};
 
     use super::*;
 
@@ -571,7 +570,7 @@ mod tests {
     #[pubky_test_utils::test]
     async fn test_generate_signup_token_with_limits() {
         use crate::persistence::sql::signup_code::{SignupCode, SignupCodeRepository};
-        use crate::shared::user_quota::QuotaOverride;
+        use crate::shared::quota::user_quota::QuotaOverride;
 
         let context = AppContext::test().await;
         let server = create_test_server(&context);

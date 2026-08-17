@@ -6,10 +6,8 @@ use axum::{
 };
 use serde::Serialize;
 
-use crate::shared::{
-    user_quota::{UserQuota, UserQuotaPatch},
-    HttpError, HttpResult, Z32Pubkey,
-};
+use crate::shared::quota::{UserQuota, UserQuotaPatch};
+use crate::shared::{HttpError, HttpResult, Z32Pubkey};
 
 use super::super::app_state::AppState;
 
@@ -79,8 +77,8 @@ mod tests {
 
     use super::*;
     use crate::admin_server::app::create_app;
-    use crate::data_directory::quota_config::BandwidthQuota;
     use crate::persistence::files::FileService;
+    use crate::shared::quota::BandwidthQuota;
     use crate::AppContext;
 
     fn create_test_server(context: &AppContext) -> TestServer {
@@ -100,7 +98,7 @@ mod tests {
 
     /// Create a test server with system-wide defaults configured.
     fn create_test_server_with_defaults(context: &AppContext) -> TestServer {
-        use crate::data_directory::DefaultQuotasToml;
+        use crate::shared::quota::DefaultQuotasToml;
 
         let mut state = AppState::new(
             context.sql_db.clone(),

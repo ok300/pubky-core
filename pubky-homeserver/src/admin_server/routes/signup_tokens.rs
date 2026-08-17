@@ -87,7 +87,7 @@ mod tests {
             files::FileService,
             sql::signup_code::{SignupCode, SignupCodeRepository},
         },
-        shared::user_quota::UserQuota,
+        shared::quota::UserQuota,
         AppContext,
     };
 
