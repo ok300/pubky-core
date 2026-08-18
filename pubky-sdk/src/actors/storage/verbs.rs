@@ -161,7 +161,7 @@ impl SessionStorage {
         method_str: &'static str,
     ) -> Result<Response> {
         let to_path: super::resource::ResourcePath = to.into_abs_path()?;
-        let method = Method::from_str(method_str).map_err(|_| RequestError::Validation {
+        let method = Method::from_str(method_str).map_err(|_e| RequestError::Validation {
             message: format!("Invalid method: {method_str}"),
         })?;
         let rb = self
