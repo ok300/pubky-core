@@ -1,8 +1,11 @@
+use std::str::FromStr;
+
 use reqwest::{Method, RequestBuilder, Response, StatusCode};
 
 use super::core::{PublicStorage, SessionStorage};
 use super::resource::{IntoPubkyResource, IntoResourcePath};
 use super::stats::ResourceStats;
+use crate::errors::RequestError;
 use crate::{Result, cross_log, util::check_http_status};
 
 /// Interpret the result of a `HEAD` request into a shared outcome used by both
@@ -155,10 +158,12 @@ impl SessionStorage {
         &self,
         from: P,
         to: P,
-        method: &'static str,
+        method_str: &'static str,
     ) -> Result<Response> {
         let to_path: super::resource::ResourcePath = to.into_abs_path()?;
-        let method = Method::from_bytes(method.as_bytes()).expect("COPY/MOVE are valid methods");
+        let method = Method::from_str(method_str).map_err(|_| RequestError::Validation {
+            message: format!("Invalid method: {method_str}"),
+        })?;
         let rb = self
             .request(method, from)
             .await?
