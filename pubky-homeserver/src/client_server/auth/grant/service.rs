@@ -15,7 +15,7 @@ use pubky_common::{
 
 use super::crypto::{
     grant_verifier::verify_grant,
-    jws_crypto::JwsCompact,
+    jws_compact::JwsCompact,
     pop_verifier::{
         PopProof, PopVerificationContext, POP_MAX_AGE_SECS, POP_NONCE_GC_THRESHOLD_SECS,
     },

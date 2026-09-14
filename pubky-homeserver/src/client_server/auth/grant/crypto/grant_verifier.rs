@@ -7,11 +7,14 @@
 //! The homeserver verifies the grant and returns a short-lived access token for API calls.
 
 use pubky_common::{
-    auth::{grant::GrantClaims, jws::GRANT_JWS_TYP},
+    auth::{
+        grant::GrantClaims,
+        jws::{verify_jws, VerifyError, GRANT_JWS_TYP},
+    },
     crypto::PublicKey,
 };
 
-use super::jws_crypto::{self, JwsCompact};
+use super::jws_compact::JwsCompact;
 
 /// Verify a Grant JWS Compact Serialization string.
 ///
@@ -23,7 +26,6 @@ use super::jws_crypto::{self, JwsCompact};
 pub fn verify_grant(compact: &JwsCompact) -> Result<GrantClaims, Error> {
     let issuer_key = extract_issuer_key(compact.as_str())?;
     let claims = verify_signature(compact.as_str(), &issuer_key)?;
-    check_header_type(compact.as_str())?;
     check_expiry(&claims)?;
     Ok(claims)
 }
@@ -37,20 +39,14 @@ fn extract_issuer_key(compact: &str) -> Result<PublicKey, Error> {
 
 /// Verify the JWS signature against the issuer's public key.
 fn verify_signature(compact: &str, issuer_key: &PublicKey) -> Result<GrantClaims, Error> {
-    let decoding_key = jws_crypto::decoding_key(issuer_key);
-    let validation = jws_crypto::eddsa_validation();
-    let token_data = jsonwebtoken::decode::<GrantClaims>(compact, &decoding_key, &validation)
-        .map_err(|_| Error::InvalidSignature)?;
-    Ok(token_data.claims)
-}
-
-/// Check that the JWS header has `typ: "pubky-grant"`.
-fn check_header_type(compact: &str) -> Result<(), Error> {
-    let header = jsonwebtoken::decode_header(compact).map_err(|_| Error::InvalidFormat)?;
-    match header.typ.as_deref() {
-        Some(GRANT_JWS_TYP) => Ok(()),
-        _ => Err(Error::InvalidHeaderType),
-    }
+    verify_jws(issuer_key, GRANT_JWS_TYP, compact).map_err(|error| match error {
+        VerifyError::InvalidHeaderType => Error::InvalidHeaderType,
+        VerifyError::InvalidFormat(_)
+        | VerifyError::JsonParse(_)
+        | VerifyError::InvalidAlgorithm
+        | VerifyError::InvalidSignature
+        | VerifyError::UnsupportedHeader => Error::InvalidSignature,
+    })
 }
 
 /// Check that the grant has not expired.

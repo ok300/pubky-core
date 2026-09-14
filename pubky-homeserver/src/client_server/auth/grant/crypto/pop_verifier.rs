@@ -10,13 +10,13 @@
 use chrono::{DateTime, Utc};
 use pubky_common::{
     auth::{
-        jws::{GrantId, PopNonce, POP_JWS_TYP},
+        jws::{verify_jws, GrantId, PopNonce, VerifyError, POP_JWS_TYP},
         pop::PopProofClaims,
     },
     crypto::PublicKey,
 };
 
-use super::jws_crypto::{self, JwsCompact};
+use super::jws_compact::JwsCompact;
 
 /// ±3 minutes — matches existing `AuthToken` `TIMESTAMP_WINDOW` in `pubky-common/src/auth.rs`.
 pub const POP_MAX_AGE_SECS: u64 = 180;
@@ -60,7 +60,6 @@ impl PopProof {
     /// Nonce replay checking is done separately via the database.
     pub fn verify(compact: &JwsCompact, context: &PopVerificationContext) -> Result<Self, Error> {
         let raw = verify_signature(compact.as_str(), context.cnf_key)?;
-        check_header_type(compact.as_str())?;
         check_audience(&raw, context.expected_audience)?;
         check_grant_binding(&raw, context.expected_grant_id)?;
         check_timestamp(&raw)?;
@@ -68,21 +67,15 @@ impl PopProof {
     }
 }
 
-/// Check that the JWS header has `typ: "pubky-pop"`.
-fn check_header_type(compact: &str) -> Result<(), Error> {
-    let header = jsonwebtoken::decode_header(compact).map_err(|_| Error::InvalidFormat)?;
-    match header.typ.as_deref() {
-        Some(POP_JWS_TYP) => Ok(()),
-        _ => Err(Error::InvalidHeaderType),
-    }
-}
-
 fn verify_signature(compact: &str, cnf_key: &PublicKey) -> Result<PopProofClaims, Error> {
-    let decoding_key = jws_crypto::decoding_key(cnf_key);
-    let validation = jws_crypto::eddsa_validation();
-    let token_data = jsonwebtoken::decode::<PopProofClaims>(compact, &decoding_key, &validation)
-        .map_err(|_| Error::InvalidSignature)?;
-    Ok(token_data.claims)
+    verify_jws(cnf_key, POP_JWS_TYP, compact).map_err(|error| match error {
+        VerifyError::InvalidHeaderType => Error::InvalidHeaderType,
+        VerifyError::InvalidFormat(_)
+        | VerifyError::JsonParse(_)
+        | VerifyError::InvalidAlgorithm
+        | VerifyError::InvalidSignature
+        | VerifyError::UnsupportedHeader => Error::InvalidSignature,
+    })
 }
 
 fn check_audience(raw: &PopProofClaims, expected: &str) -> Result<(), Error> {
@@ -119,10 +112,6 @@ fn parse_verified_pop(raw: PopProofClaims) -> Result<PopProof, Error> {
 /// Errors from PoP proof verification.
 #[derive(thiserror::Error, Debug)]
 pub enum Error {
-    /// The JWS format is invalid or unparseable.
-    #[error("invalid PoP format")]
-    InvalidFormat,
-
     /// The JWS header `typ` is not `"pubky-pop"`.
     #[error("invalid PoP header type, expected pubky-pop")]
     InvalidHeaderType,
